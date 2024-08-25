@@ -1,4 +1,4 @@
-namespace Alazon.Text;
+namespace Bomolochus.Text;
 
 public readonly struct BufferRange(int start, int end)
 {

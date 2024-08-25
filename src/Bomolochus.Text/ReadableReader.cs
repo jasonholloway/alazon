@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Alazon.Text;
+namespace Bomolochus.Text;
 
 //TextVec's come with Readable?
 //

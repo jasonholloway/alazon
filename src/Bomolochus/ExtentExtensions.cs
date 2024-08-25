@@ -1,6 +1,6 @@
-using Alazon.Text;
+using Bomolochus.Text;
 
-namespace Alazon;
+namespace Bomolochus;
 
 public static class ExtentExtensions
 {

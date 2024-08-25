@@ -3,7 +3,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using StreamJsonRpc;
 
-namespace Alazon.LanguageServer;
+namespace Bomolochus.LanguageServer;
 
 public class RpcReceiver(JsonRpc rpc, Func<Uri, IObservable<string>, IObservable<Document>> diagnose) : IDisposable
 {

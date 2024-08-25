@@ -1,4 +1,4 @@
-namespace Alazon.Text;
+namespace Bomolochus.Text;
 
 public abstract record Readable(TextVec Size)
 {

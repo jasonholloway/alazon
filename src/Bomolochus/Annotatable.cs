@@ -1,4 +1,4 @@
-namespace Alazon;
+namespace Bomolochus;
 
 public interface Annotatable
 {

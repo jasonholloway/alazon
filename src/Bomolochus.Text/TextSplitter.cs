@@ -1,4 +1,4 @@
-namespace Alazon.Text;
+namespace Bomolochus.Text;
 
 public class TextSplitter(Readable readable)
 {

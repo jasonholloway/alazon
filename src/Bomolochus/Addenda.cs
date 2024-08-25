@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Alazon;
+namespace Bomolochus;
 
 public record Addenda(double Certainty, ImmutableArray<string> Notes)
 {

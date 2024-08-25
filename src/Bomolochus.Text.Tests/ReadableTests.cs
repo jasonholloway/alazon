@@ -1,6 +1,6 @@
 using NUnit.Framework;
 
-namespace Alazon.Text.Tests;
+namespace Bomolochus.Text.Tests;
 
 public class ReadableTests
 {

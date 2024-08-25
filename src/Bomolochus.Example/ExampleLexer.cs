@@ -1,6 +1,6 @@
-using Alazon.Text;
+using Bomolochus.Text;
 
-namespace Alazon.Example;
+namespace Bomolochus.Example;
 
 public class ExampleLexer(Readable text) : Lexer(text)
 {

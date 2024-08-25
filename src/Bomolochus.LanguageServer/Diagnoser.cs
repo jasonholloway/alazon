@@ -1,10 +1,7 @@
 using System.Reactive.Linq;
-using Alazon.Example;
-using Alazon.Text;
+using Bomolochus.Example;
 
-namespace Alazon.LanguageServer;
-
-using static EnumerableEx;
+namespace Bomolochus.LanguageServer;
 
 public static class Diagnoser
 {
@@ -23,19 +20,4 @@ public static class Diagnoser
                         .ToArray() ?? []
                 )
             );
-}
-
-
-public static class Extensions
-{
-    public static IEnumerable<Parsed> Enumerate(this Parsed parsed) 
-        => Return(parsed)
-            .Concat(parsed.Upstreams.SelectMany(Enumerate));
-    
-    public static Range ToRange(this (TextVec From, TextVec To) tup) 
-        => new(
-            new Position(tup.From.Lines, tup.From.Cols), 
-            new Position(tup.To.Lines, tup.To.Cols)
-            );
-    
 }

@@ -2,7 +2,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using NUnit.Framework;
 
-namespace Alazon.Example.Tests;
+namespace Bomolochus.Example.Tests;
 
 public class ScratchPadTests
 {

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Reactive.Subjects;
 using StreamJsonRpc;
 
-namespace Alazon.LanguageServer;
+namespace Bomolochus.LanguageServer;
 
 public record Diagnostic(Range Range, string Message);
 

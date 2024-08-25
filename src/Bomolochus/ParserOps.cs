@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Alazon;
+namespace Bomolochus;
 
 public static class ParserOps 
 {

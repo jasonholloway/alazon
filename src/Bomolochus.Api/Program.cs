@@ -1,6 +1,6 @@
 using System.Net.WebSockets;
 using System.Text.Json;
-using Alazon.LanguageServer;
+using Bomolochus.LanguageServer;
 using Microsoft.AspNetCore.WebSockets;
 using StreamJsonRpc;
 

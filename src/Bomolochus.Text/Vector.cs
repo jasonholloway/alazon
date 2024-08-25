@@ -1,4 +1,4 @@
-namespace Alazon.Text;
+namespace Bomolochus.Text;
 
 public record TextVec(int Chars, int Lines, int Cols)
 {

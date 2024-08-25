@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Alazon.Api.Pages;
+namespace Bomolochus.Api.Pages;
 
 public class Index : PageModel
 {

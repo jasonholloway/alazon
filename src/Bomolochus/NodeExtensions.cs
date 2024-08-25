@@ -1,4 +1,4 @@
-namespace Alazon;
+namespace Bomolochus;
 
 using static ParserOps;
 

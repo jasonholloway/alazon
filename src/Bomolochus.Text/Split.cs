@@ -1,4 +1,4 @@
-namespace Alazon.Text;
+namespace Bomolochus.Text;
 
 public record Split(Split? Previous, Readable Readable)
 {
