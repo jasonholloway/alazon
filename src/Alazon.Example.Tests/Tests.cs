@@ -103,6 +103,24 @@ public class Tests
         Assert.That(Print(parsed), Is.EqualTo(PrepNodeString(expected)));
     }
 
+    [TestCase("(Bob = 123)", 0, 2, "Ref(Bob)")]
+    [TestCase("(Bob = 123)", 0, 9, "Number(123)")]
+    [TestCase("(Bob = 123)", 0, 5, "Is(Ref(Bob), Number(123))")]
+    [TestCase("""
+              
+              (Bob = 123)
+              
+              """, 1, 9, "Number(123)")]
+    public void FindsNodes(string text, int line, int col, string expected)
+    {
+        var parsed = ExampleParser.ParseExpression.Run(text);
+
+        var found = parsed.OuterExtent.FindParseds(line, col).FirstOrDefault();
+        
+        Assert.That(Print(found), Is.EqualTo(PrepNodeString(expected)));
+    }
+
+    
     static string Print(object? val, PrintFlags flags = PrintFlags.Default)
         => val switch
         {
@@ -122,14 +140,14 @@ public class Tests
     static string PrintParsed(Parsed? parsed, PrintFlags flags = PrintFlags.Default)
         => parsed switch
         {
-            Parsed<Node> { Value: var v } => PrintNode(v, flags),
+            Parsed<Parsable> { Value: var v } => PrintNode(v, flags),
             null => "NULL",
             _ => "",
         };
 
-    static string PrintNode(Node node, PrintFlags flags)
+    static string PrintNode(Parsable node, PrintFlags flags)
     {
-        var parsed = node is Parsable pn ? pn.Parsed : null;
+        var parsed = node.Parsed;
         
         return 
             (flags.HasFlag(PrintFlags.WithExtents)

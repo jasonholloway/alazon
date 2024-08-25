@@ -40,7 +40,7 @@ public class RpcReceiver(JsonRpc rpc, Func<Uri, IObservable<string>, IObservable
     {
         if(_map.TryGetValue(new Uri(textDocument.uri), out var doc)  
            && doc.Documents.Value is { Parsed: {} root }
-           && root.Extent.Find(position.line, position.character) is {} found
+           && root.Extent.FindDescendent(position.line, position.character) is {} found
            && found.Linked.FirstOrDefault() is Parsed<Parsable> linked)
         {
             return new

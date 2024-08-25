@@ -55,7 +55,7 @@ public abstract class Extent
         return pos;
     }
 
-    public Extent Find(int line, int col)
+    public Extent FindDescendent(int line, int col)
     {
         var curr = this;
 
@@ -69,6 +69,8 @@ public abstract class Extent
             }
             else if (line == x.Lines)
             {
+                line -= x.Lines;
+                
                 if (col < x.Cols)
                 {
                     curr = l;
@@ -173,7 +175,7 @@ public abstract class Extent
         }
         
         Extent? FindApex(Extent l, Extent r)
-            => LastCommonNode(l.Lineage, r.Lineage);
+            => LastCommonNode(l.LineageFromRoot, r.LineageFromRoot);
 
         Extent? LastCommonNode(IEnumerable<Extent> lineage0, IEnumerable<Extent> lineage1)
         {
@@ -191,15 +193,35 @@ public abstract class Extent
         }
     }
 
-    public IEnumerable<Extent> Lineage
+    public IEnumerable<Extent> LineageFromRoot
     {
         get
         {
             var ancestors = Parent.TryResolve(out var parent, out _)
-                ? parent.Lineage
+                ? parent.LineageFromRoot
                 : Enumerable.Empty<Extent>();
 
             return ancestors.Concat([this]);
+        }
+    }
+    
+    public IEnumerable<Extent> LineageToRoot
+    {
+        get
+        {
+            var curr = this;
+
+            while (true)
+            {
+                yield return curr;
+
+                if (!curr.Parent.TryResolve(out var parent, out _))
+                {
+                    yield break;
+                }
+
+                curr = parent;
+            }
         }
     }
 
