@@ -1,0 +1,478 @@
+
+* ExtentTree
+** Operations
+*** Split(X)
+*** Group(A,B)
+**** A and B inclusively mark contiguous range of Leaves
+**** as such, there must be common Apex node
+***** though the Apex as found might cover more than just our intended range, which we need to therefore adjust
+**** Simplest complex case:
+   X
+  / \
+ a   Y
+    / \
+   b   c
+
+Group(a,b) finds apex X
+but as found, this covers too much
+fix would be: rearrange tree to be as so:
+
+     X
+    / \
+   Y   c
+  / \
+ a   b
+
+only Y must be free to do this
+as X retains its place and its range
+though its legs are manipulated
+
+the original Y, if non-free, poses a problem
+it would be a competing grouping
+which is impossible in our scheme 
+
+algo seems to be: find apex, rotate legs if poss
+**** More complex:
+       X
+     /   \
+   Y       Z
+  / \     / \
+ a   b   c   d
+
+ Group(b,c) finds apex X
+ now what?
+
+ we /always/ need a new covering apex
+ and if the number of leaves is odd, the subtree below the apex will be skew-whiff
+
+ but in this case we only wish to cover 2 leaves
+ and so the target state of a single apex covering no more and no less
+ is our starting point
+
+ we must want a subtree like this:
+   N
+  / \
+ b   c
+ 
+ also, we can start from X, a solid immovable point
+ X can pop from the left to the right, or vice versa
+ without overreaching, these are its two possible rejigs
+ 
+ moving from left to right:
+ the left leg must be a node (otherwise movement in this direction is pointless)
+ the left leg node is dissolved
+ the left grandchild becomes our immediate left child
+ and the right grandchild is pushed under a new intermediate right child
+
+ moving this left->right:
+   X
+  / \
+ a   N
+    / \
+   b   c
+
+ would only achieve this:
+ X
+  \
+   N
+  / \
+ a   N
+    / \
+   b   c
+
+ which only introduces a further indirection
+ gains us no fidelity of range coverage whatsoever
+**** Recap:
+       X
+     /   \
+   N       N
+  / \     / \
+ a   b   c   d
+
+ Group(b,c) finds apex X
+ now what?
+
+ we repeatedly perform ops
+ until we are happy with the result
+
+ in this case we would rotate L->R   /BUT HOW DO WE KNOW WHICH DIRECTION TO GO??/
+   X
+  / \
+ a   N
+    / \
+   b   N
+      / \
+     c   d
+
+ this gets us closer though we my not realise it
+ the apex must be found again
+
+ it makes sense that apex moves, or rather our pivot moves
+ if it didn't, we'd be happy from the beginning!
+
+ the current apex is our current problem
+ it has its finger in the pie
+ and we must rejig it to forget it and narrow away from it
+   N
+  / \
+ a   X
+    / \
+   b   N
+      / \
+     c   d
+
+   X
+  / \
+ b   N
+    / \
+   c   d
+
+ we could reresolve the apex after every rotation: Apex(b,c)
+ or is there some way to know if the apex has moved? and in which direction?
+
+ we would repeatedly shift L->R with the same pivot
+ until the happy moment when 'b', that is the recognisable left limit of the range
+ is shifted over
+ once this is done, we know that the new node we have synthesised to hold it
+ is a better pivot for us, it is its inescapable apex
+
+ it is also a possibility after each Shift(N)
+ that our current pivot receives the left limit as its immediate left child
+ in which case we are perfectly placed without any hopping over
+
+ so, Shift(X) until we detect a either pushed under to the right, or newly immediately available to the left
+ and in shifting we can't dissolve a fixed node
+
+ this is a point: our apex may be perfect
+ even with a mediated left limit
+ tolerance of mediation allows fixed nodes to inhabit our new grouping
+
+ from our pivot point, we need to know how many leaves in excess we have to the left
+ and we must keep on shifting till this goes down to 0
+ once at zero, we move to phase 2
+
+ going down to zero is proof of perfection: we are the limit
+
+ but alternatively we may detect the left limit itself being shifted
+ which means we as apex are excessive
+ we have found the perfect limit, but it is not us!
+ we must move operations the synthesized child node as new apex
+
+ or thirdly we may find our rotation impossible due to
+ a fixing association, and we must error
+ it is always TryShift(X) then...
+
+ but at one of these terminals, we have our apex definitively for phase 2
+
+ _PHASE 2_
+ we are perfect to the left now
+ but we still have excess to the right
+
+   X
+  / \
+ b   N
+    / \
+   c   d
+ 
+ now is time to repeatedly POP that excess away
+ which is this simple rotation:
+
+     N
+    / \
+   X   d
+  / \
+ b   c
+ 
+ our left side is perfect
+ but to do the above, we need to rotate from the node above us!
+
+ the original apex might actually be fixed
+ the apex covers more than what we want on its right side
+ we know to aim at a more focused apex, the child of the current apex
+ so the current apex can never be the answer, though we've just used
+ it to skim off stuff 
+
+ shifting never actually gets rid of stuff to the left
+ the only way of doing this it through the final hop to a new node
+ this is what skims off the excess to the left
+ reducing to zero excess of course means we don't have to hop fortuituously
+ but in this case we'd never shift at all
+ we'd start from zero
+ and know we just didn't have to shift
+
+ if we do have excess, then we just keep on shifting until we detect
+ that the level has been shifted
+ therefore we don't have to keep tabs on the excess
+ we just need to know /at first/ whether there is any excess at all
+ simple!
+
+ and if there is excess, on shifting, eventually we either fail or we detect
+ the crucial limit passing through
+ at which point we hop
+
+ and reach Phase 2
+
+ _PHASE 2 PART DEUX_
+ Now we have this:
+   X
+  / \
+ b   N
+    / \
+   c   d
+
+ again as before, either we're perfect from the off
+ or we have to repeatedly pop until we are
+
+ popping is a leftwards shift, which involves dissolving nodes to the right
+
+     X
+    / \
+   N   d
+  / \   
+ b   c 
+
+ again, if detect the right limit going through, then we hop
+
+ and recurse again
+
+
+ Group(a,z) {
+   (x, excessLeft, excessRight) = Apex(a,z)
+    
+   if excessLeft {
+     x = Shift(x,a)
+   }
+
+   if excessRight {
+     x = Unshift(x,z)
+   }
+
+   return apex
+ }
+
+ Shift(x,a) {
+   rotate until a is on the right
+   return new child node on right
+ }
+
+ Unshift(x,z) {
+   rotate back until z is on the left
+   return new left child node
+ }
+
+   
+ /BIG IDEA/
+ in finding the original apex
+ we count the number of excess nodes
+
+ if 0 then we know we're good
+ otherwise we need to shift until 
+
+ no - this only makes sense if we know the sizes of subtrees
+ which we've not committed to currently
+
+ we just know from Apex() what intermediate nodes there are of unknown overall weight
+ could these intermediate nodes be cycled wholesale, not one by one????
+**** Apex(a,z)
+Apex(a,z) = FirstDivergentNode(LineageToRoot(a), LineageToRoot(z))
+
+**** RECAP and: laziness?
+we split Extents up into tokens
+these tokens transparently rearrange themselves into a balanced binary tree
+when we collect token under a larger node
+we group their contiguous expanse
+the old Split and Group ops
+
+Split(Extent,Index): (Left,Right)
+
+and were we going to make it mutable?
+token splitting doesn't require us to go back necessarily (though we can imagine it might sometimes)
+but grouping is definitively speculative
+
+I feel like we've been here before but managed to climb out of it
+previously we ended up with WeakRef-based ParentLinks, I know this much
+which would mean parents know their children, and therefore we'd be creating new parents if they were immutable
+I'm fairly sure mutability was the way we were going to go
+nice quick rotations (imagine ints in an arena!)
+
+but if we are to have mutations
+we'll need a sealing step
+simple as that
+which complicates our basic APIs
+
+Split and Group would have to be lazy then?
+but if so, then we're going to construct quite big structures in memory
+
+where do we seal in the parsing?
+only at the end of the entire parsing
+but this seems appropriate: parsing forms immutable structures that only point upwards (as with the parse tree)
+and then on final sealing, we transcribe the structure into the ExtentTree
+simple!
+
+**** Laziness
+still we want to Split and Group on Extents
+and maybe there's chance to enforce constraints/accumulate helpful info
+
+these ProtoExtents would have positive parent links
+and in fact would still be split similarly
+in fact maybe they could even be grouped similarly
+what they completely lack is a means of diving downwards
+but this is actually needed for rotating!
+both lookup and rotation needs parent->child linkages
+
+another idea (though dubious) would be to go whole hog immutability
+and create new versions of the overall tree on each update
+I don't like the wastefulness of this
+
+and so our only alternative is to create a proto structure
+with suspended splittings
+or maybe the only bit that needs suspending is grouping!
+
+Split can be done straight up without deferral
+but balancing again requires troublesome rotation, so we can't balance from the off
+and as we would then be stuck forming an inefficient linked list
+it seems like we come back to a more specialised method of capture:
+A simple queue of Ambits
+but then with suspended groupings
+
+so, a list of Splits and a list of Groups
+though how would a Group refer to a Split?
+
+unsure
+but after a capture of all these Ambits
+they can be articulated into a perfectly balanced binary tree
+ready for grouping
+
+or we could actually have a linked list...
+in fact, to support immutability this is exactly what we'd need
+a tail-first linked list
+
+our consuming code just wants to use it as normal
+we'd have an Extent and we want to split it up
+
+this seems fine then:
+the first splitting would be completely unbalanced
+
+in fact the lazy sealing and grouping of the extents could be done by walking the Parse tree...
+which would allow us to inject associations at that point too
+
+So in phase 1, we accumalte ExtentOps: Split(Split? prev, int pos) | Group(Split from, Split to)
+
+though these Groups... could they be made implicit?
+as in, we don't need to create them specially: we just put the Splits in our ParseNodes
+and then in walking our Parse nodes we can group our Extents
+
+this soulds good to me
+
+though previously we've favoured doing all this completely separately, as its own subsystem
+this would still use the Group() operation, however it would be suspended into the Parse tree
+best of both worlds, kinda
+**** RECAP
+as we tokenize, we create a Split(Split?, int) linked-list
+
+and when we seal the parse tree, we walk this list to create a balanced Extent tree
+which we then articulate by the Group operation
+
+the Extent tree at this point optimises for searching out associations
+
+the articulation itself happens by walking the Parse tree
+but the Split->Extent conversion does not
+as this would then allow us to skip tokens in our articulation
+all would exist, but only our positive groupings would give us shape
+
+Again:
+1. accumulate Splits
+2. on seal, convert these to Extents
+   i. possibly balance this initial tree!
+3. also on seal, walk the Parse tree top down, grouping he Extents and impressing associations
+
+but why can't we just split out Extents?
+simply because we want to be able to speculate with our tokens
+which actually seems reasonable
+
+but then we don't necessarily need a Reader...
+as the point of the reader is to manage this speculation and to _commit_
+
+if we ever wanted to explode the Parser/Lexer distinction (sounds fun) we'd definitely want this
+plus a Split can be efficiently worked-backwards into an Extent tree, as it will be the same shape
+
+
+NB
+as soon as we split, we create something readable
+
+
+
+
+
+*** Group(a,b):
+
+TrimRight(x,b):
+
+   X
+  / \
+ a   Y
+    / \
+   Z   d
+  / \
+ b  c
+
+ we need to rotate nodes leftwards
+ until we have everything snuggly captured by our left leg
+
+ and to rotate, we go into the right leg
+ we condense it down, extracting the nodes we ourselves care about
+ possibly with structure intact
+ in fact yes: we want not a queue of leaves, but of liberated fragments
+ and then we go through this queue
+ injecting it into the left leg
+
+** Rotation ii
+intention has been to pivot on a fixed point, to rotate below an apex
+but ideally we'd have something recursive
+
+we'd delve recursively, firstly down the one leg, and then down the other
+
+delve and liberate, followed by injection of the accumulation
+
+* Vectors and Extents
+Leaves know their sizes directly
+And Nodes can memoize on formation, with any changes bubbling up
+But an Extent is not personally aware of its position within its container
+It just knows its left and its right, and their sizes
+
+Finding a position or range within the tree is therefore a matter of climbing the tree
+and at each node choosing left or right, in a kind of binary search
+
+But in our tests we are concerned initially with self-knowledge
+ie extents should know their position and range
+is this not something to be scanned?
+
+For an entire subtree, we can deduce positions by enumerating all nodes
+
+And for individual elements
+we can find our position by working up the lineage
+
+There are two modes, then:
+- top-down report involving enumeration
+- bottom-up self-recognition involving bubbling up through parents
+* Readables and Sizes
+sizes must be stored and accumulated separately from Readables, as otherwise
+a size request against an entire document would summon up an entire Readable tree
+covering the entire document.
+
+Even if we stored Readables eagerly, this is an entire extra structure linking all fragments together
+But Readables in their merging are actually consolidated passively,
+plus we do want to have, at some distant time, an out-of-band consolidation mechanism
+that puts all readables together
+
+In short, using Readables as a base layer of aggregation might actually pay off
+doing so would abstract away size aggregation and memoization: a plus
+
+Readables must be aggregated eagerly, with sizes similarly eager.
+We need to avoid recalculation.
+
+Though when extents do change, their readables need to be updated in an upward bubbling
+
+
+
+ 

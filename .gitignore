@@ -4,4 +4,8 @@
 *.user
 bin
 obj
+.\#*
+\#*
+.artifacts
+launchSettings.json
 
