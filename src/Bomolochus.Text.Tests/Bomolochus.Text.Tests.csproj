@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <RootNamespace>Alazon.Text.Tests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -23,7 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Alazon.Text\Alazon.Text.csproj" />
+      <ProjectReference Include="..\Bomolochus.Text\Bomolochus.Text.csproj" />
     </ItemGroup>
 
 </Project>

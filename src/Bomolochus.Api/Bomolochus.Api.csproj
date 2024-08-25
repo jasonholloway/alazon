@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <InvariantGlobalization>true</InvariantGlobalization>
+        <RootNamespace>Alazon.Api</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,8 +13,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Alazon.LanguageServer\Alazon.LanguageServer.csproj" />
-      <ProjectReference Include="..\Alazon\Alazon.csproj" />
+      <ProjectReference Include="..\Bomolochus.LanguageServer\Bomolochus.LanguageServer.csproj" />
+      <ProjectReference Include="..\Bomolochus\Bomolochus.csproj" />
     </ItemGroup>
 
 </Project>

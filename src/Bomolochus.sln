@@ -3,23 +3,23 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alazon", "Alazon\Alazon.csproj", "{DB187288-0D65-4DC8-BCEF-FF84FF893F05}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bomolochus", "Bomolochus\Bomolochus.csproj", "{DB187288-0D65-4DC8-BCEF-FF84FF893F05}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alazon.Example.Tests", "Alazon.Example.Tests\Alazon.Example.Tests.csproj", "{CDA706C0-A441-4E50-8292-9889CCB9911C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bomolochus.Example.Tests", "Bomolochus.Example.Tests\Bomolochus.Example.Tests.csproj", "{CDA706C0-A441-4E50-8292-9889CCB9911C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alazon.Api", "Alazon.Api\Alazon.Api.csproj", "{3E60AC1F-801A-4B2C-8085-9F1C26DC6205}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bomolochus.Api", "Bomolochus.Api\Bomolochus.Api.csproj", "{3E60AC1F-801A-4B2C-8085-9F1C26DC6205}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Server", "Server", "{C5BEC23F-D65B-4317-BF80-2212DE2511D2}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Language", "Language", "{71AA55CF-BC2C-4D99-AC59-47B1FC002EFA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alazon.LanguageServer", "Alazon.LanguageServer\Alazon.LanguageServer.csproj", "{BCB682D3-FB92-4D07-9715-85EBF6D12B93}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bomolochus.LanguageServer", "Bomolochus.LanguageServer\Bomolochus.LanguageServer.csproj", "{BCB682D3-FB92-4D07-9715-85EBF6D12B93}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alazon.Text", "Alazon.Text\Alazon.Text.csproj", "{85B8B9AC-4FCF-4813-BE7E-4B2F72ADF0FE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bomolochus.Text", "Bomolochus.Text\Bomolochus.Text.csproj", "{85B8B9AC-4FCF-4813-BE7E-4B2F72ADF0FE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alazon.Text.Tests", "Alazon.Text.Tests\Alazon.Text.Tests.csproj", "{A7DF9FEF-B645-4C14-B89B-F3869CFF65A4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bomolochus.Text.Tests", "Bomolochus.Text.Tests\Bomolochus.Text.Tests.csproj", "{A7DF9FEF-B645-4C14-B89B-F3869CFF65A4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alazon.Example", "Alazon.Example\Alazon.Example.csproj", "{655280C6-EEEC-4801-91D9-5F7CBEDBE1CC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bomolochus.Example", "Bomolochus.Example\Bomolochus.Example.csproj", "{655280C6-EEEC-4801-91D9-5F7CBEDBE1CC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Example", "Example", "{8E0985D6-8182-4285-BAC2-5BEE3BE34A31}"
 EndProject
