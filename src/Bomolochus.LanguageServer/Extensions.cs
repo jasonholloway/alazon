@@ -4,9 +4,9 @@ namespace Bomolochus.LanguageServer;
 
 public static class Extensions
 {
-    public static IEnumerable<Parsed> Enumerate(this Parsed parsed) 
+    public static IEnumerable<Parsed> EnumerateAll(this Parsed parsed) 
         => EnumerableEx.Return(parsed)
-            .Concat(parsed.Upstreams.SelectMany(Enumerate));
+            .Concat(parsed.Upstreams.SelectMany(EnumerateAll));
     
     public static Range ToRange(this (TextVec From, TextVec To) tup) 
         => new(

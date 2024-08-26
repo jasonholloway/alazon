@@ -77,7 +77,7 @@ public static class ParserOps
             var acNodes = ImmutableArray<Node>.Empty;
             var acParsed = ImmutableArray<Parsing>.Empty;
             
-            while (inner.Run(x) is { Context: var x1, Parsing: var parsing })
+            while (inner.Run(x) is { Context: var x1, Parsing: { Certainty: 1 } parsing })
             {
                 //todo shouldn't continue on null parsed
                 //otherwise will continue for ever...

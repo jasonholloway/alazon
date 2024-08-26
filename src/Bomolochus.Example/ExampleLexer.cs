@@ -87,7 +87,6 @@ public class ExampleLexer(Readable text) : Lexer(text)
             ? Emit(new Token.Value.Number(int.Parse(claimed.ReadAll()))) //todo seems like this could be done more efficiently? ie some kind of readable visitor
             : Reset();
     
-
     static bool IsWordChar(char c)
         => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z');
 

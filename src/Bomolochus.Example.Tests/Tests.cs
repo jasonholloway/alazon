@@ -2,6 +2,8 @@
 
 namespace Bomolochus.Example.Tests;
 
+using static Printer;
+
 public class Tests
 {
     [TestCase("123", "Number(123)")]
@@ -54,6 +56,7 @@ public class Tests
         """
         , "[Rule(Ref(A), [Number(1)]), Rule(Ref(B), [Number(2)])]"
         )]
+    [TestCase("A = 3www", "Is(Ref(A), !Noise)")]
     public void ParsesRules(string text, string expected)
     {
         var parsed = ExampleParser.ParseRules.Run(text);
@@ -67,7 +70,7 @@ public class Tests
     public void ParsesExpressionsWithSizes(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
-        Assert.That(Print(tree, PrintFlags.WithSizes), Is.EqualTo(PrepNodeString(expected)));
+        Assert.That(Print(tree, Flags.WithSizes), Is.EqualTo(PrepNodeString(expected)));
     }
     
     [TestCase(" 13  ", "<0,1-0,3>Number(13)")]
@@ -89,7 +92,7 @@ public class Tests
     public void ParsesExpressionsWithExtents(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
-        Assert.That(Print(tree, PrintFlags.WithExtents), Is.EqualTo(PrepNodeString(expected)));
+        Assert.That(Print(tree, Flags.WithExtents), Is.EqualTo(PrepNodeString(expected)));
     }
     
     [TestCase("**", "!Noise")]
@@ -121,68 +124,6 @@ public class Tests
     }
 
     
-    static string Print(object? val, PrintFlags flags = PrintFlags.Default)
-        => val switch
-        {
-            Parsed p => PrintParsed(p, flags),
-            
-            _ => "NULL"
-        };
-
-    [Flags]
-    enum PrintFlags
-    {
-        Default,
-        WithSizes,
-        WithExtents
-    }
-
-    static string PrintParsed(Parsed? parsed, PrintFlags flags = PrintFlags.Default)
-        => parsed switch
-        {
-            Parsed<Parsable> { Value: var v } => PrintNode(v, flags),
-            null => "NULL",
-            _ => "",
-        };
-
-    static string PrintNode(Parsable node, PrintFlags flags)
-    {
-        var parsed = node.Parsed;
-        
-        return 
-            (flags.HasFlag(PrintFlags.WithExtents)
-                && parsed is { Extent: var extent }
-                && extent.GetAbsoluteRange() is ({} @from, {} to)
-                 ? $"<{@from.Lines},{@from.Cols}-{to.Lines},{to.Cols}>"
-                 : "") +
-            (flags.HasFlag(PrintFlags.WithSizes)
-             && parsed is not null
-             && parsed.Extent.Readable.Size is { } vec
-                ? $"[{vec.Lines},{vec.Cols}]"
-                : "") +
-            (parsed?.Certainty < 1 ? "!" : "" ) +
-            (node switch
-            {
-                Node.Ref(var s) => $"Ref({s.ReadAll()})",
-                Node.Number(var n) => $"Number({n})",
-                Node.String(var s) => $"String({s.ReadAll()})",
-                Node.Regex(var s) => $"Regex({s.ReadAll()})",
-                Node.Is(var left, var right) => $"Is({PrintNode(left, flags)}, {PrintNode(right, flags)})",
-                Node.And(var left, var right) => $"And({PrintNode(left, flags)}, {PrintNode(right, flags)})",
-                Node.Or(var left, var right) => $"Or({PrintNode(left, flags)}, {PrintNode(right, flags)})",
-                Node.Prop(var left, var right) => $"Prop({PrintNode(left, flags)}, {PrintNode(right, flags)})",
-                Node.Rule(var left, var right) => $"Rule({PrintNode(left, flags)}, {PrintNode(right, flags)})",
-                Node.Call(var left, var args) => $"Call({PrintNode(left, flags)}, {PrintNode(args[0], flags)})",
-                Node.Incr(var left, var right) => $"Incr({PrintNode(left, flags)}, {PrintNode(right, flags)})",
-                Node.List(var nodes) => $"[{string.Join(", ", nodes.Select(n => PrintNode(n, flags)))}]",
-                Node.Expect => $"?",
-                Node.Noise => "Noise",
-                Node.Delimiter => "Delimiter",
-                Node.Syntax => "Syntax",
-                null => "NULL",
-                _ => throw new Exception($"Bad value, can't print: {node}")
-            });
-    }
 
     static string PrepNodeString(string raw) =>
         string.Join(' ', raw.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));

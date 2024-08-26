@@ -20,8 +20,9 @@ public static class ExampleParser
 
     private static IParser<Node.Rule> ParseRule =>
         from expr in Optional(ParseExpression)
-        from block in ParseStatement
+        from block in OneOf(ParseStatement, Expect("Expected statement"))
         select new Node.Rule(expr, block);
+    
 
     public static IParser<Node> ParseExpression =>
         Expand(ParseUnaryExpression, ParseBinaryExpression);
