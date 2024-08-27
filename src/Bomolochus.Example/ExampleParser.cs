@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 
 namespace Bomolochus.Example;
 
@@ -22,46 +23,102 @@ public static class ExampleParser
         from expr in Optional(ParseExpression)
         from block in OneOf(ParseStatement, Expect("Expected statement"))
         select new Node.Rule(expr, block);
-    
+
+
+    /// Exp = Name|Value + (Noise|(ExpOp + Exp))?
 
     public static IParser<Node> ParseExpression =>
-        Expand(ParseUnaryExpression, ParseBinaryExpression);
+        ParseDisjunction;
+
+    static IParser<Node> ParseDisjunction =>
+        from head in ParseConjunction
+        from tail in Many(
+            from op in Take<Token.Op.Or>()
+            from next in ParseConjunction
+            select next
+        )
+        select tail.Nodes.Any() 
+            ? new Node.Or([head, ..tail.Nodes])
+            : head;
+
+    static IParser<Node> ParseConjunction =>
+        from head in ParseEquality
+        from tail in Many(
+            from op in Take<Token.Op.And>()
+            from next in ParseEquality
+            select next
+        )
+        select tail.Nodes.Any() 
+            ? new Node.And([head, ..tail.Nodes])
+            : head;
+
+    static IParser<Node> ParseEquality =>
+        from head in ParseProp
+        from tail in Many(
+            from op in Take<Token.Op.Is>()
+            from next in OneOf(ParseProp, Expect("Expect something here mate"))
+            select next
+        )
+        select tail.Nodes.Any() 
+            ? new Node.Is([head, ..tail.Nodes]) 
+            : head;
+
+    private static IParser<Node> ParseProp =>
+        Expand(ParseTerminal,
+            left => 
+                from op in Take<Token.Op.Dot>()
+                from right in ParseTerminal
+                select new Node.Prop(left, right)
+        );
     
-    private static IParser<Node> ParseUnaryExpression =>
+    private static IParser<Node> ParseTerminal =>
         OneOf(
-            ParseOpenBracket,
-            ParseNameNode,
+            ParseNameNode, 
             ParseValueNode,
+            (
+                from open in Take<Token.OpenBracket>()
+                from exp in ParseExpression
+                from close in Take<Token.CloseBracket>()
+                select exp
+            ),
             ParseNoise
             );
-
-    private static IParser<Node> ParseBinaryExpression(Node left) =>
-        from op in Take<Token.Op>()
-        from exp in op switch
-        {
-            Token.Op.Dot =>
-                Barrier(precedence: 0,
-                    from right in ParseNameNode
-                    select new Node.Prop(left, right) as Node
-                ),
-            Token.Op.Is =>
-                Barrier(precedence: 6,
-                    from right in OneOf(ParseExpression, Expect("Expected expression"))
-                    select new Node.Is(left, right)
-                ),
-            Token.Op.And =>
-                Barrier(precedence: 7,
-                    from right in ParseExpression
-                    select new Node.And(left, right)
-                ),
-            Token.Op.Or =>
-                Barrier(precedence: 8,
-                    from right in ParseExpression
-                    select new Node.Or(left, right)
-                ),
-            _ => null
-        }
-        select exp;
+    
+    
+    // private static IParser<Node> StartParsingExpression =>
+    //     OneOf(
+    //         ParseNameNode,
+    //         ParseValueNode,
+    //         ParseNoise
+    //         );
+    //
+    // private static IParser<Node> ContinueParsingExpression(Node left) =>
+    //     from op in Take<Token.Op>()
+    //     from exp in op switch
+    //     {
+    //         Token.Op.Dot =>
+    //             Barrier(precedence: 0,
+    //                 from right in ParseNameNode
+    //                 select new Node.Prop(left, right) as Node
+    //             ),
+    //         Token.Op.Is =>
+    //             Barrier(precedence: 6,
+    //                 from right in OneOf(ParseExpression, Expect("Expected expression"))
+    //                 select new Node.Is(left, right)
+    //             ),
+    //         Token.Op.And =>
+    //             Barrier(precedence: 7,
+    //                 from right in ParseExpression
+    //                 select new Node.And(left, right)
+    //             ),
+    //         Token.Op.Or =>
+    //             Barrier(precedence: 8,
+    //                 from right in ParseExpression
+    //                 select new Node.Or(left, right)
+    //             ),
+    //         _ => null
+    //     }
+    //     select exp;
 
     public static IParser<Node.List> ParseStatements =>
         from head in ParseStatement

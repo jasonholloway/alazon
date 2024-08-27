@@ -77,11 +77,8 @@ public static class ParserOps
             var acNodes = ImmutableArray<Node>.Empty;
             var acParsed = ImmutableArray<Parsing>.Empty;
             
-            while (inner.Run(x) is { Context: var x1, Parsing: { Certainty: 1 } parsing })
+            while (inner.Run(x) is { Context: var x1, Parsing: { Val: not null } parsing })
             {
-                //todo shouldn't continue on null parsed
-                //otherwise will continue for ever...
-                
                 (acParsed, acNodes) = parsing switch
                 {
                     null => (acParsed, acNodes),
@@ -130,6 +127,12 @@ public static class ParserOps
 
             return best!;
         });
+    
+    public static IParser<Node.Partial<N>> Partial<N>(IParser<N> inner)
+        where N : Node
+    {
+        throw new NotImplementedException();
+    }
     
     public static IParser<TToken> Take<TToken>(Func<TToken, bool>? match = null)
         where TToken : Token

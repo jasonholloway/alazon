@@ -14,9 +14,10 @@ public abstract record Node : Parsable, Annotatable
     public record Number(int Val) : Value;
     public record BinaryExpression(Node Left, Node Right) : Node;
     public record Prop(Node Left, Node Right) : BinaryExpression(Left, Right);
-    public record Is(Node Left, Node Right) : BinaryExpression(Left, Right);
-    public record And(Node Left, Node Right) : BinaryExpression(Left, Right);
-    public record Or(Node Left, Node Right) : BinaryExpression(Left, Right);
+
+    public record Is(Node[] Nodes) : Node;
+    public record And(Node[] Nodes) : Node;
+    public record Or(Node[] Nodes) : Node;
     
     public record Rule(Node? Condition, Node Statement) : Node;
 
@@ -28,6 +29,8 @@ public abstract record Node : Parsable, Annotatable
                 .AddRange(tail.Nodes)
             );
     }
+
+    public record Partial<N>(Node Node, Noise Rest) where N : Node;
 
     public record Noise : Node;
     public record Syntax : Node;
