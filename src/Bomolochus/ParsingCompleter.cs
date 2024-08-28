@@ -8,7 +8,7 @@ public static class ParsingCompleter
     public static Parsed<N> Complete<N>(this Parsing<N> parsing)
         where N : Parsable
     {
-        var ac = FoldIntermediates(parsing.Val)(ParsingAcc.Empty, parsing);
+        var ac = new[] { parsing }.Aggregate(ParsingAcc.Empty, FoldIntermediates(parsing.Val));
 
         if (parsing.Val is Annotatable a
             && a.Extract() is {} addenda)
@@ -19,31 +19,20 @@ public static class ParsingCompleter
                 Addenda = ac.Addenda + addenda
             };
         }
-
-        var (spaceBefore, innerExtent, spaceAfter) = SeparateExtents(ac.FoundExtents);
-        var outerExtent = Extent.From(spaceBefore, Extent.From(innerExtent, spaceAfter));
         
-        var parsed = new _Parsed<N>(ac.Certainty, innerExtent, outerExtent, ac.Addenda, parsing.Val, ac.Upstreams.ToArray());
+        var parsed = new _Parsed<N>(
+            ac.Certainty, 
+            ac.RootExtent ?? Extent.Empty, 
+            ac.AllExtents.Aggregate(Extent.Empty, Extent.From), 
+            ac.Addenda, 
+            parsing.Val, 
+            ac.Upstreams.ToArray());
         
         parsed.Extent.BackLink(parsed);
         parsing.Val.BackLink(parsed);
         
         return parsed;
     }
-
-    static (Extent Before, Extent Extent, Extent After) SeparateExtents(ImmutableArray<FoundExtent> foundExtents)
-    {
-        var start = foundExtents.TakeWhile(f => f.IsSpace).Count();
-        var end = foundExtents.Length - foundExtents.Reverse().TakeWhile(f => f.IsSpace).Count();
-
-        return (
-            foundExtents[..start].Aggregate(Extent.Empty, (ac, f) => Extent.From(ac, f.Extent)),
-            foundExtents[start..end].Aggregate(Extent.Empty, (ac, f) => Extent.From(ac, f.Extent)),
-            foundExtents[end..].Aggregate(Extent.Empty, (ac, f) => Extent.From(ac, f.Extent))
-            );
-    }
-    
-    
 
     static Func<ParsingAcc, Parsing, ParsingAcc> FoldIntermediates(Parsable root)
         => (ac, p) =>
@@ -57,28 +46,42 @@ public static class ParsingCompleter
                     return ac with
                     {
                         Certainty = ac.Certainty * parsed.Certainty,
-                        FoundExtents = ac.FoundExtents.Add(new FoundExtent(parsed.OuterExtent, IsSpace: false)),
+                        AllExtents = ac.AllExtents.AddRange(parsed.OuterExtent),
                         Upstreams = ac.Upstreams.Add(parsed)
                     };
                 }
 
-                case ParsingGroup { Upstreams: var upstreams, Addenda: var addenda }:
+                case ParsingGroup pg:
                 {
-                    ac = upstreams.Aggregate(ac, FoldIntermediates(root));
+                    var ac2 = pg.Upstreams.Aggregate(ParsingAcc.Empty, FoldIntermediates(root));
+
+                    if (pg is Parsing<Parsable>)
+                    {
+                        //our value is a Node, therefore if not already set by more local parsing,
+                        //we should set the RootExtent to home in on the value
+                        ac = ac with
+                        {
+                            RootExtent = ac.RootExtent ?? ac2.RootExtent ?? ac2.AllExtents.Aggregate(Extent.Empty, Extent.From)
+                        };
+                    }
 
                     return ac with
                     {
-                        Certainty = ac.Certainty * p.Certainty,
-                        Addenda = ac.Addenda + addenda //unsure about this
+                        Certainty = ac.Certainty * ac2.Certainty * pg.Addenda.Certainty, //todo not certain about this - needs revisiting
+                        AllExtents = ac.AllExtents.AddRange(ac2.AllExtents),
+                        Upstreams = ac.Upstreams.AddRange(ac2.Upstreams),
+                        Addenda = ac.Addenda + ac2.Addenda
                     };
                 }
-
-                case ParsingText { Text: var text, Addenda: var addenda, IsSpace: var isSpace }:
+                
+                case ParsingText { Text: var text, Addenda: var addenda }:
                 {
+                    var extent = Extent.From(text.Readable);
+                    
                     return ac with
                     {
                         Certainty = ac.Certainty * addenda.Certainty,
-                        FoundExtents = ac.FoundExtents.Add(new FoundExtent(Extent.From(text.Readable), isSpace)),
+                        AllExtents = ac.AllExtents.Add(extent),
                         Addenda = ac.Addenda + addenda
                     };
                 }
@@ -88,12 +91,12 @@ public static class ParsingCompleter
             }
         };
 
-    record FoundExtent(Extent Extent, bool IsSpace);
+    // record FoundExtent(Extent Extent, bool IsSpace);
     
 
-    record ParsingAcc(double Certainty, ImmutableArray<FoundExtent> FoundExtents, Addenda Addenda, ImmutableArray<Parsed> Upstreams)
+    record ParsingAcc(double Certainty, Extent? RootExtent, ImmutableArray<Extent> AllExtents, Addenda Addenda, ImmutableArray<Parsed> Upstreams)
     {
-        public static readonly ParsingAcc Empty = new(1, [], Addenda.Empty, []);
+        public static readonly ParsingAcc Empty = new(1, null, [], Addenda.Empty, []);
     }
     
     class _Parsed<N>(double certainty, Extent innerExtent, Extent outerExtent, Addenda addenda, N value, Parsed[] upstreams) : Parsed<N> where N: Parsable

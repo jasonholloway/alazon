@@ -38,7 +38,7 @@ public abstract record Node : Parsable, Annotatable
 
     public record Expect : Node;
 
-    #region ParsedNode
+    #region Parsable
 
     private Parsed? _parsed;
 

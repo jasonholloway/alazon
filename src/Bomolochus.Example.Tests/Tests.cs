@@ -73,15 +73,13 @@ public class Tests
         Assert.That(Print(tree, Flags.WithSizes), Is.EqualTo(PrepNodeString(expected)));
     }
     
-    [TestCase(" 13  ", "<0,1-0,3>Number(13)")]
-    [TestCase("A = (1 & B)", "<0,0-0,11>Is(<0,0-0,1>Ref(A), <0,4-0,11>And(<0,5-0,6>Number(1), <0,9-0,10>Ref(B)))")]
     [TestCase(
         """
         Z = (
           1 & 2
           )
         """, 
-        "<0,0-2,3>Is(<0,0-0,1>Ref(Z), <0,4-2,3>And(<1,2-1,3>Number(1), <1,6-1,7>Number(2)))")]
+        "<0,0-2,3>Is[<0,0-0,1>Ref(Z), <0,4-2,3>And[<1,2-1,3>Number(1), <1,6-1,7>Number(2)]]")]
     [TestCase(
         """
         
@@ -89,11 +87,19 @@ public class Tests
           
         """, 
         "<1,1-1,2>Number(1)", Description = "space should be gutterised")]
+    [TestCase(" 13  ", "<0,1-0,3>Number(13)")]
+    [TestCase("A = (1 & B)", "<0,0-0,11>Is[<0,0-0,1>Ref(A), <0,4-0,11>And[<0,5-0,6>Number(1), <0,9-0,10>Ref(B)]]")]
+    [TestCase("Z = 1  ", "<0,0-0,5>Is[<0,0-0,1>Ref(Z), <0,4-0,5>Number(1)]")]
     public void ParsesExpressionsWithExtents(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
         Assert.That(Print(tree, Flags.WithExtents), Is.EqualTo(PrepNodeString(expected)));
     }
+    
+    // todo
+    // OuterExtent should really have Before and After to allow bubbling up of the excess
+    // excess space at the outside of a Parsed should be absorbed into the parent, if the parsed is first or last within the parent
+    
     
     [TestCase("**", "!Noise")]
     [TestCase("Bob = **", "!Is(Ref(Bob), !Noise)")]
