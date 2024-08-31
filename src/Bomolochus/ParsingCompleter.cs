@@ -45,26 +45,49 @@ public static class ParsingCompleter
                 case Parsing<Parsable> parsing when !ReferenceEquals(parsing.Val, rootVal):
                 {
                     var parsed = Complete(parsing);
+                    
+                    //so at this point 
+                    //the inner thing might possibly need its gutters absorbing - but how so?
+                    //
+                    //we're folding a new territory surrounding a child value
+                    //we haven't found our root yet
+                    //because we need to fold before knowing we're root...
+                    //almost like the inner needs pre-scanning
+                    //
+                    //in our case we're the final parsed in the list
+                    //but the inner can't know this!
+                    //and we've not found our root yet, so we don't know this either
+                    //so we don't know enough to shove everything into the same bucket
+                    //so we must differentiate by putting into 'registers'
+                    //
+                    //but our accumulation into registers
+                    //needs to also be done by the other sections
+                    //ie an enountered token needs to shuffle the registers all back
+                    //
+                    //could we generalize over the register assignment?
+                    //in fact, do we even need to assign them inline? could their processing be deferred?
+                    //we'd accumulate triples of extents
+                    //and then they'd be finished of finally on completion
+                    //ie when we have the whole set
+                    //
+                    //but we'd need to know more than just the list of them
+                    //some of them will be root triples
 
-                    switch (ac.Mode)
+                    ac = ac.Mode switch
                     {
-                        case FoldMode.Naive:
-                            ac = ac with
-                            {
-                                Left = ac.Left.Add(parsed.Left),
-                                Centre = ac.Centre.AddRange(ac.Right).Add(parsed.Centre),
-                                Right = [parsed.Right]
-                            };
-                            break;
-                        
-                        case FoldMode.FoundRoot:
-                            ac = ac with
-                            {
-                                Centre = ac.Centre.AddRange(ac.Right).Add(parsed.Left).Add(parsed.Centre),
-                                Right = [parsed.Right]
-                            };
-                            break;
-                    }
+                        FoldMode.Grasping => ac with
+                        {
+                            // Left = [..ac.Left, parsed.Left, parsed.Centre, parsed.Right]
+                            Left = [..ac.Left, parsed.Left],
+                            Centre = [..ac.Centre, parsed.Centre],
+                            Right = [..ac.Right, parsed.Right],
+                        },
+                        FoldMode.Clenched => ac with
+                        {
+                            Right = [..ac.Right, parsed.Left, parsed.Centre, parsed.Right]
+                        },
+                        _ => ac
+                    };
 
                     return ac with
                     {
@@ -75,51 +98,41 @@ public static class ParsingCompleter
                 
                 //must be a parsing of our root, but not actual tokens
                 //so we fold through upstreams
-                case ParsingGroup pg:
+                case ParsingGroup pg and Parsing<Parsable> pp when ReferenceEquals(pp.Val, rootVal):
                 {
                     var inner = pg.Upstreams.Aggregate(FoldAcc.Empty, Fold(rootVal));
 
-                    var isRoot = ac.Mode == FoldMode.Naive 
-                                 && inner.Mode == FoldMode.Naive
-                                 && pg is Parsing<Parsable> pp
-                                 && ReferenceEquals(pp.Val, rootVal);
-                    
-                    if (isRoot)
+                    ac = ac.Mode switch
                     {
-                        ac = ac with
+                        FoldMode.Grasping => inner.Mode switch
                         {
-                            Mode = FoldMode.FoundRoot,
-                            Centre = ac.Centre.AddRange(ac.Right).AddRange(inner.Left).AddRange(inner.Centre),
-                            Right = inner.Right
-                        };
-                    }
-                    else
-                    {
-                        switch (ac.Mode)
+                            FoldMode.Grasping => ac with
+                            {
+                                //WE ARE ROOT
+                                //everything below us is ours - though spaces could still be separated out here
+                                Mode = FoldMode.Clenched,
+                                Centre = [..ac.Centre, ..inner.Left, ..inner.Centre, ..inner.Right]
+                            },
+                            FoldMode.Clenched => ac with
+                            {
+                                //ROOT IS BELOW US
+                                //we are intermediate and singular (unless root node is passed back multiple times!)
+                                //therefore we can absorb gutters
+                                Mode = FoldMode.Clenched,
+                                Left = [..ac.Left, ..inner.Left],
+                                Centre = [..ac.Centre, ..inner.Centre],
+                                Right = inner.Right
+                            },
+                            _ => throw new NotImplementedException()
+                        },
+                        FoldMode.Clenched => ac with
                         {
-                            case FoldMode.Naive:
-                                ac = ac with
-                                {
-                                    Mode = inner.Mode,
-                                    Left = ac.Left.AddRange(inner.Left),
-                                    Centre = ac.Centre.AddRange(ac.Right).AddRange(inner.Centre),
-                                    Right = inner.Right
-                                };
-                                break;
-                            
-                            case FoldMode.FoundRoot:
-                                ac = ac with
-                                {
-                                    Mode = inner.Mode,
-                                    Left = ac.Left.AddRange(inner.Left),
-                                    Centre = ac.Centre.AddRange(ac.Right).AddRange(inner.Centre),
-                                    Right = inner.Right
-                                };
-                                break;
-                        }
-                        
-                        
-                    }
+                            //WE ARE PAST ROOT
+                            //as such everything goes in right gutter
+                            Right = [..ac.Right, ..inner.Left, ..inner.Centre, ..inner.Right]
+                        },
+                        _ => throw new NotImplementedException()
+                    };
 
                     return ac with
                     {
@@ -129,20 +142,24 @@ public static class ParsingCompleter
                     };
                 }
                 
+                case ParsingGroup pg and Parsing<Parsable> pp:
+                    throw new NotImplementedException("WE ARE NOT ROOT - WHAT TO DO?");
+                
                 case ParsingText { Text: var text, Addenda: var addenda }:
                 {
                     var extent = Extent.From(text.Readable);
 
                     ac = ac.Mode switch
                     {
-                        FoldMode.Naive => ac with
+                        FoldMode.Grasping => ac with
                         {
                             Left = ac.Left.Add(extent)
                         },
-                        FoldMode.FoundRoot => ac with
+                        FoldMode.Clenched => ac with
                         {
                             Right = ac.Right.Add(extent)
-                        }
+                        },
+                        _ => throw new NotImplementedException()
                     };
 
                     return ac with
@@ -159,12 +176,15 @@ public static class ParsingCompleter
 
     record FoldAcc(FoldMode Mode, ImmutableArray<Extent> Left, ImmutableArray<Extent> Centre, ImmutableArray<Extent> Right, double Certainty, Addenda Addenda, ImmutableArray<Parsed> Upstreams)
     {
-        public static readonly FoldAcc Empty = new(FoldMode.Naive, [], [], [], 1, Addenda.Empty, []);
+        public static readonly FoldAcc Empty = new(FoldMode.Grasping, [], [], [], 1, Addenda.Empty, []);
     }
+
+    record Triple(bool IsRoot, Extent Left, Extent Centre, Extent Right);
+    
 
     enum FoldMode
     {
-        Naive, FoundRoot, Tail
+        Grasping, Clenched
     }
     
     
