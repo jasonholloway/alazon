@@ -6,7 +6,7 @@ namespace Bomolochus.LanguageServer;
 
 public record Diagnostic(Range Range, string Message);
 
-public record Document(Uri Uri, int Version, Parsed? Parsed, Diagnostic[] Diagnostics);
+public record Document(Uri Uri, int Version, ParsedDoc Doc, Diagnostic[] Diagnostics);
 
 public class LspServer
 {

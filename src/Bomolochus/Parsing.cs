@@ -6,8 +6,9 @@ namespace Bomolochus;
 public interface Parsed
 {
     double Certainty { get; }
-    Extent Extent { get; }
-    Extent OuterExtent { get; }
+    Extent Centre { get; }
+    Extent Left { get; }
+    Extent Right { get; }
     Addenda Addenda { get; }
     IEnumerable<Parsed> Upstreams { get; }
 }

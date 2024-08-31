@@ -30,30 +30,54 @@ public abstract class Extent
         return node;
     }
 
-    public (TextVec From, TextVec To) GetAbsoluteRange()
+    public (TextVec From, TextVec To) GetBoundsOf(Extent target)
     {
-        var pos = GetAbsolutePosition();
-        return (pos, pos.Append(Readable.Size));
+        var pos = GetOffsetTo(target);
+        return (pos, pos.Append(target.Readable.Size));
     }
 
-    public TextVec GetAbsolutePosition()
+    public TextVec GetOffsetTo(Extent target)
     {
         var pos = TextVec.Empty;
-        var curr = this;
 
-        while (curr is { Parent: var link } 
-               && link.TryResolve(out var parent, out var type))
+        while (!ReferenceEquals(target, this))
         {
+            if (!target.Parent.TryResolve(out var parent, out var type))
+            {
+                throw new Exception("Not in subtree");
+            }
+
             if (type == ParentLinkType.Right)
             {
                 pos = parent.Left.Readable.Size.Append(pos);
             }
 
-            curr = parent;
+            target = parent;
         }
 
         return pos;
     }
+    
+    
+    //
+    // public TextVec GetAbsolutePosition()
+    // {
+    //     var pos = TextVec.Empty;
+    //     var curr = this;
+    //
+    //     while (curr is { Parent: var link } 
+    //            && link.TryResolve(out var parent, out var type))
+    //     {
+    //         if (type == ParentLinkType.Right)
+    //         {
+    //             pos = parent.Left.Readable.Size.Append(pos);
+    //         }
+    //
+    //         curr = parent;
+    //     }
+    //
+    //     return pos;
+    // }
 
     public Extent FindDescendent(int line, int col)
     {

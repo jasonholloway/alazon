@@ -1,23 +1,27 @@
 using System.Reactive.Linq;
 using Bomolochus.Example;
+using Bomolochus.Text;
 
 namespace Bomolochus.LanguageServer;
 
 public static class Diagnoser
 {
-    public static IObservable<Document> Diagnose(Uri uri, IObservable<string> docs) =>
-        docs
+    public static IObservable<Document> Diagnose(Uri uri, IObservable<string> texts) =>
+        texts
             .Select(ExampleParser.ParseRules.Run)   
-            .Select((parsed, version) => 
-                new Document(
+            .Select((parsed, version) =>
+            {
+                var doc = new ParsedDoc(Extent.From(parsed.Left, Extent.From(parsed.Centre, parsed.Right)), parsed);
+                
+                return new Document(
                     uri,
                     version,
-                    parsed,
+                    doc,
                     parsed?
                         .EnumerateAll()
                         .SelectMany(p => p.Addenda.Notes.Select(n => (Parsed: p, Note: n)))
-                        .Select(tup => new Diagnostic(tup.Parsed.Extent.GetAbsoluteRange().ToRange(), tup.Note))
+                        .Select(tup => new Diagnostic(doc.Extent.GetBoundsOf(tup.Parsed.Centre).ToRange(), tup.Note))
                         .ToArray() ?? []
-                )
-            );
+                );
+            });
 }

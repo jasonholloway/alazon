@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using Bomolochus.Text;
 using StreamJsonRpc;
 
 namespace Bomolochus.LanguageServer;
@@ -39,14 +40,14 @@ public class RpcReceiver(JsonRpc rpc, Func<Uri, IObservable<string>, IObservable
     public object? Hover(TextDocument textDocument, Position position)
     {
         if(_map.TryGetValue(new Uri(textDocument.uri), out var doc)  
-           && doc.Documents.Value is { Parsed: {} root }
-           && root.OuterExtent.FindParseds(position.line, position.character).FirstOrDefault() is Parsed<Parsable> found)
+           && doc.Documents.Value is var parsed
+           && parsed.Doc.Extent.FindParseds(position.line, position.character).FirstOrDefault() is Parsed<Parsable> found)
         {
-            var range = found.Extent.GetAbsoluteRange();
+            var range = parsed.Doc.Extent.GetBoundsOf(found.Centre);
             
             return new
             {
-                contents = Printer.Print(found),
+                contents = Printer.Print(parsed.Doc, found),
                 range = new {
                     start = new
                     {
@@ -73,7 +74,7 @@ public class RpcReceiver(JsonRpc rpc, Func<Uri, IObservable<string>, IObservable
         var docSink = new Subject<string>();
         _disposables.Add(docSink);
         
-        var diagnoses = new BehaviorSubject<Document>(new Document(uri, 0, null, []));
+        var diagnoses = new BehaviorSubject<Document>(new Document(uri, 0, new ParsedDoc(Extent.Empty, null), []));
         _disposables.Add(diagnose(uri, docSink).Subscribe(diagnoses));
         
         _map[uri] = (docSink, diagnoses);
