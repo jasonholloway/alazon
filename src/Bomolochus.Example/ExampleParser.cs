@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Runtime.InteropServices;
 
 namespace Bomolochus.Example;
 
@@ -32,34 +31,34 @@ public static class ExampleParser
 
     static IParser<Node> ParseDisjunction =>
         from head in ParseConjunction
-        from tail in Many(
+        from tail in Optional(AtLeastOne(
             from op in Take<Token.Op.Or>()
             from next in ParseConjunction
             select next
-        )
-        select tail.Nodes.Any() 
+        ))
+        select tail != null
             ? new Node.Or([head, ..tail.Nodes])
             : head;
 
     static IParser<Node> ParseConjunction =>
         from head in ParseEquality
-        from tail in Many(
+        from tail in Optional(AtLeastOne(
             from op in Take<Token.Op.And>()
             from next in ParseEquality
             select next
-        )
-        select tail.Nodes.Any() 
+        ))
+        select tail != null
             ? new Node.And([head, ..tail.Nodes])
             : head;
 
     static IParser<Node> ParseEquality =>
         from head in ParseProp
-        from tail in Many(
+        from tail in Optional(AtLeastOne(
             from op in Take<Token.Op.Is>()
             from next in OneOf(ParseProp, Expect("Expect something here mate"))
             select next
-        )
-        select tail.Nodes.Any() 
+        ))
+        select tail != null 
             ? new Node.Is([head, ..tail.Nodes]) 
             : head;
 
@@ -73,14 +72,9 @@ public static class ExampleParser
     
     private static IParser<Node> ParseTerminal =>
         OneOf(
+            ParseBrackets,
             ParseNameNode, 
             ParseValueNode,
-            (
-                from open in Take<Token.OpenBracket>()
-                from exp in ParseExpression
-                from close in Take<Token.CloseBracket>()
-                select exp
-            ),
             ParseNoise
             );
 
@@ -98,7 +92,7 @@ public static class ExampleParser
 
     private static IParser<Node> ParseUnaryStatement =>
         OneOf(
-            ParseOpenBrace,
+            ParseBraces,
             ParseCall,
             ParseNameNode,
             ParseValueNode,
@@ -122,11 +116,11 @@ public static class ExampleParser
         select statement;
 
     //todo below should emit a Block node, not a simple List
-    private static IParser<Node.List> ParseOpenBrace =>
+    private static IParser<Node> ParseBraces =>
         from open in Take<Token.OpenBrace>()
         from statements in ParseStatements
         from close in Take<Token.CloseBrace>()
-        select statements;
+        select new Node.Braces(statements);
 
     private static IParser<Node.Call> ParseCall =>
         from name in ParseNameNode
@@ -135,11 +129,11 @@ public static class ExampleParser
         from close in Take<Token.CloseBracket>()
         select new Node.Call(name, [arg0]);
 
-    private static IParser<Node> ParseOpenBracket =>
+    private static IParser<Node> ParseBrackets =>
         from open in Take<Token.OpenBracket>()
         from exp in Isolate(ParseExpression)
         from close in Take<Token.CloseBracket>()
-        select exp;
+        select new Node.Brackets(exp);
 
     private static IParser<Node.Ref> ParseNameNode =>
         from name in Take<Token.Name>()

@@ -19,7 +19,12 @@ public abstract class Extent
     public static Extent From(Readable readable)
         => new ExtentLeaf(readable);
 
-    public static Extent From(Extent left, Extent right)
+
+    public static Extent Combine(params Extent[] extents)
+        => extents.Aggregate(Empty, Combine);
+    
+
+    public static Extent Combine(Extent left, Extent right)
     {
         if (left is ExtentEmpty) return right;
         if (right is ExtentEmpty) return left;
@@ -29,6 +34,12 @@ public abstract class Extent
         right.Parent = new ParentLink(ParentLinkType.Right, node);
         return node;
     }
+
+
+    public static Extent operator +(Extent left, Extent right)
+        => Combine(left, right);
+    
+    
 
     public (TextVec From, TextVec To) GetBoundsOf(Extent target)
     {
@@ -148,7 +159,7 @@ public abstract class Extent
         if (surplus is not null)
         {
             var (oldLeft, _) = apex.SwapLeft(surplus);
-            (_, apex) = apex.SwapRight(e => (ExtentNode)From(oldLeft, e));
+            (_, apex) = apex.SwapRight(e => (ExtentNode)Combine(oldLeft, e));
         } 
 
         acc = seek = right;
@@ -174,7 +185,7 @@ public abstract class Extent
         if (surplus is not null)
         {
             var (oldRight, _) = apex.SwapRight(surplus);
-            (_, apex) = apex.SwapLeft(e => (ExtentNode)From(e, oldRight));
+            (_, apex) = apex.SwapLeft(e => (ExtentNode)Combine(e, oldRight));
         }
 
         return apex;
@@ -185,7 +196,7 @@ public abstract class Extent
                 (null, null) => null,
                 (not null, null) => l,
                 (null, not null) => r,
-                _ => From(l, r)
+                _ => Combine(l, r)
             };
 
         (ExtentNode, ParentLinkType) GetParentNode(Extent e)
@@ -288,6 +299,9 @@ public class ExtentEmpty : Extent
     internal static ExtentEmpty Instance = new();
     
     public override Readable Readable => Readable.Empty;
+
+    public override string ToString()
+        => "EMPTY";
 };
 
 public class ExtentNode(Extent left, Extent right) : Extent

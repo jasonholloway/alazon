@@ -22,7 +22,6 @@ public static class NodeExtensions
                 return new Result<N>(
                     result.Context,
                     new ParsingGroup<N>(
-                        0.5, 
                         parsing.Val, 
                         [parsing], 
                         new Addenda(0.5, [message]))

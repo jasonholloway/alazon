@@ -11,7 +11,7 @@ public static class Diagnoser
             .Select(ExampleParser.ParseRules.Run)   
             .Select((parsed, version) =>
             {
-                var doc = new ParsedDoc(Extent.From(parsed.Left, Extent.From(parsed.Centre, parsed.Right)), parsed);
+                var doc = new ParsedDoc(Extent.Combine(parsed.Left, Extent.Combine(parsed.Centre, parsed.Right)), parsed);
                 
                 return new Document(
                     uri,

@@ -5,7 +5,6 @@ namespace Bomolochus;
 
 public interface Parsed
 {
-    double Certainty { get; }
     Extent Centre { get; }
     Extent Left { get; }
     Extent Right { get; }
@@ -21,14 +20,13 @@ public interface Parsed<out N> : Parsed
 
 public interface Parsing
 {
-    double Certainty { get; }
     Addenda Addenda { get; }
     
-    public static Parsing<T> From<T>(T val, Split split, double certainty = 1)
-        => new ParsingText<T>(certainty, val, split, IsSpace: val is Token.Space);
+    public static Parsing<T> From<T>(T val, Split split, Addenda addenda)
+        => new ParsingText<T>(val, split, IsSpace: val is Token.Space, addenda);
     
-    public static Parsing<T> From<T>(T val, ImmutableArray<Parsing> upstreams, double certainty = 1)    
-        => new ParsingGroup<T>(certainty, val, upstreams);    
+    public static Parsing<T> From<T>(T val, ImmutableArray<Parsing> upstreams, Addenda addenda)    
+        => new ParsingGroup<T>(val, upstreams, addenda);    
 }
 
 public interface Parsing<out N> : Parsing
@@ -47,10 +45,10 @@ public interface ParsingGroup : Parsing
     ImmutableArray<Parsing> Upstreams { get; }
 }
 
-public record ParsingGroup<T>(double Certainty, T Val, ImmutableArray<Parsing> Upstreams, Addenda? Addenda = null) 
-    : ParsingVal<T>(Certainty, Val, Addenda ?? Addenda.Empty), ParsingGroup;
+public record ParsingGroup<T>(T Val, ImmutableArray<Parsing> Upstreams, Addenda? Addenda = null) 
+    : ParsingVal<T>(Val, Addenda ?? Addenda.Empty), ParsingGroup;
 
-public record ParsingText<T>(double Certainty, T Val, Split Text, bool IsSpace = false, Addenda? Addenda = null) 
-    : ParsingVal<T>(Certainty, Val, Addenda ?? Addenda.Empty), ParsingText;
+public record ParsingText<T>(T Val, Split Text, bool IsSpace = false, Addenda? Addenda = null) 
+    : ParsingVal<T>(Val, Addenda ?? Addenda.Empty), ParsingText;
 
-public abstract record ParsingVal<T>(double Certainty, T Val, Addenda Addenda) : Parsing<T>;
+public abstract record ParsingVal<T>(T Val, Addenda Addenda) : Parsing<T>;

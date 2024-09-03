@@ -35,9 +35,9 @@ public static class Printer
             (flags.HasFlag(Flags.WithSizes)
              && parsed is not null
              && parsed.Centre.Readable.Size is { } vec
-                ? $"[{vec.Lines},{vec.Cols}]"
+                ? $"<{vec.Lines},{vec.Cols}>"
                 : "") +
-            (parsed?.Certainty < 1 ? "!" : "") +
+            (parsed?.Addenda.Certainty < 1 ? "!" : "") +
             (node switch
             {
                 Node.Ref(var s) => $"Ref({s.ReadAll()})",
@@ -52,6 +52,8 @@ public static class Printer
                 Node.Call(var left, var args) => $"Call({_Print(left)}, {_Print(args[0])})",
                 Node.Incr(var left, var right) => $"Incr({_Print(left)}, {_Print(right)})",
                 Node.List(var nodes) => $"[{string.Join(", ", nodes.Select(_Print))}]",
+                Node.Brackets(var inner) => $"({_Print(inner)})",
+                Node.Braces(var inner) => $"{{{_Print(inner)}}}",
                 Node.Expect => $"?",
                 Node.Noise => "Noise",
                 Node.Delimiter => "Delimiter",

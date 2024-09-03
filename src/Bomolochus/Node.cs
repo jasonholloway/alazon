@@ -12,6 +12,10 @@ public abstract record Node : Parsable, Annotatable
     public record String(Readable Readable) : Value;
     public record Regex(Readable Readable) : Value;
     public record Number(int Val) : Value;
+
+    public record Brackets(Node Inner) : Node;
+    public record Braces(List Inner) : Node;
+    
     public record BinaryExpression(Node Left, Node Right) : Node;
     public record Prop(Node Left, Node Right) : BinaryExpression(Left, Right);
 

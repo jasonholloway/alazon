@@ -3,6 +3,8 @@ using Bomolochus.Text;
 
 namespace Bomolochus;
 
+using static Extent;
+
 public static class ParsingCompleter
 {
     public static Parsed<N> Complete<N>(this Parsing<N> parsing)
@@ -15,16 +17,14 @@ public static class ParsingCompleter
         {
             ac = ac with
             {
-                Certainty = ac.Certainty * addenda.Certainty,
                 Addenda = ac.Addenda + addenda
             };
         }
+
+        var (left, centre, right) = DistributeExtents(ac.Clutched);
         
         var folded = new Folded<N>(
-            ac.Certainty, 
-            ac.Left.Aggregate(Extent.Empty, Extent.From),
-            ac.Centre.Aggregate(Extent.Empty, Extent.From),
-            ac.Right.Aggregate(Extent.Empty, Extent.From),
+            left, centre, right,
             ac.Addenda, 
             parsing.Val, 
             ac.Upstreams.ToArray());
@@ -33,6 +33,115 @@ public static class ParsingCompleter
         parsing.Val.BackLink(folded);
         
         return folded;
+    }
+
+    static (Extent Left, Extent Centre, Extent Right) DistributeExtents(ImmutableArray<Clutch> clutched)
+    {
+        var left = Empty;
+        var centre = Empty;
+        var right = Empty;
+
+        bool foundRoot = false;
+
+        foreach (var clutch in clutched)
+        {
+            switch (foundRoot, clutch)
+            {
+                case (false, Clutch.Simple(var e, _)):
+                    left += e;
+                    break;
+                
+                case (true, Clutch.Simple(var e, _)):
+                    right += e;
+                    break;
+                
+                case (false, Clutch.Triple(var l, var c, var r)):
+                    left += l + c + r;
+                    break;
+                
+                case (true, Clutch.Triple(var l, var c, var r)):
+                    right += l + c + r;
+                    break;
+                
+                case (_, Clutch.Root(var inner)):
+                    var rootRest = new Stack<Clutch>(inner.Length);
+                    var rootFoundNonSpace = false;
+                    
+                    foreach (var clutch2 in inner)
+                    {
+                        switch (clutch2)
+                        {
+                            case Clutch.Simple(var e, true) when !rootFoundNonSpace:
+                                left += e;
+                                break;
+                            
+                            case Clutch.Simple(var e, _) s:
+                                rootRest.Push(s);
+                                rootFoundNonSpace = true;
+                                break;
+                            
+                            case Clutch.Triple(var l, var c, var r) t when !rootFoundNonSpace:
+                                left += l;
+                                rootRest.Push(t with { Left = Empty });
+                                rootFoundNonSpace = true;
+                                break;
+                            
+                            case Clutch.Triple(var l, var c, var r) t:
+                                rootRest.Push(t);
+                                rootFoundNonSpace = true;
+                                break;
+                            
+                            default:
+                                throw new NotImplementedException();
+                        }
+                    }
+
+                    rootFoundNonSpace = false;
+
+                    var rootRight = Empty;
+                    var rootCentre = Empty;
+                    
+                    foreach (var clutch3 in rootRest)
+                    {
+                        switch (clutch3)
+                        {
+                            case Clutch.Simple(var e, true) when !rootFoundNonSpace:
+                                rootRight = e + rootRight;
+                                break;
+                            
+                            case Clutch.Simple(var e, false) when !rootFoundNonSpace:
+                                rootCentre = e;
+                                rootFoundNonSpace = true;
+                                break;
+                            
+                            case Clutch.Triple(var l, var c, var r) when !rootFoundNonSpace:
+                                rootCentre = l + c;
+                                rootRight = r + rootRight;
+                                rootFoundNonSpace = true;
+                                break;
+                            
+                            case Clutch.Simple(var e, _):
+                                rootCentre = e + rootCentre;
+                                break;
+                            
+                            case Clutch.Triple(var l, var c, var r):
+                                rootCentre = l + c + r + rootCentre;
+                                break;
+                        }
+                    }
+
+                    centre += rootCentre;
+                    right += rootRight;
+                    
+                    foundRoot = true;
+                    break;
+                
+                case (_, Clutch.Intermediate(var inner)):
+                    break;
+            }
+        }
+
+        return (left, centre, right);
     }
 
     static Func<FoldAcc, Parsing, FoldAcc> Fold(Parsable rootVal)
@@ -45,54 +154,12 @@ public static class ParsingCompleter
                 case Parsing<Parsable> parsing when !ReferenceEquals(parsing.Val, rootVal):
                 {
                     var parsed = Complete(parsing);
-                    
-                    //so at this point 
-                    //the inner thing might possibly need its gutters absorbing - but how so?
-                    //
-                    //we're folding a new territory surrounding a child value
-                    //we haven't found our root yet
-                    //because we need to fold before knowing we're root...
-                    //almost like the inner needs pre-scanning
-                    //
-                    //in our case we're the final parsed in the list
-                    //but the inner can't know this!
-                    //and we've not found our root yet, so we don't know this either
-                    //so we don't know enough to shove everything into the same bucket
-                    //so we must differentiate by putting into 'registers'
-                    //
-                    //but our accumulation into registers
-                    //needs to also be done by the other sections
-                    //ie an enountered token needs to shuffle the registers all back
-                    //
-                    //could we generalize over the register assignment?
-                    //in fact, do we even need to assign them inline? could their processing be deferred?
-                    //we'd accumulate triples of extents
-                    //and then they'd be finished of finally on completion
-                    //ie when we have the whole set
-                    //
-                    //but we'd need to know more than just the list of them
-                    //some of them will be root triples
-
-                    ac = ac.Mode switch
-                    {
-                        FoldMode.Grasping => ac with
-                        {
-                            // Left = [..ac.Left, parsed.Left, parsed.Centre, parsed.Right]
-                            Left = [..ac.Left, parsed.Left],
-                            Centre = [..ac.Centre, parsed.Centre],
-                            Right = [..ac.Right, parsed.Right],
-                        },
-                        FoldMode.Clenched => ac with
-                        {
-                            Right = [..ac.Right, parsed.Left, parsed.Centre, parsed.Right]
-                        },
-                        _ => ac
-                    };
 
                     return ac with
                     {
-                        Certainty = ac.Certainty * parsed.Certainty,
-                        Upstreams = ac.Upstreams.Add(parsed)
+                        Addenda = ac.Addenda with { Certainty = ac.Addenda.Certainty * parsed.Addenda.Certainty },
+                        Upstreams = ac.Upstreams.Add(parsed),
+                        Clutched = [..ac.Clutched, new Clutch.Triple(parsed.Left, parsed.Centre, parsed.Right)]
                     };
                 }
                 
@@ -102,70 +169,50 @@ public static class ParsingCompleter
                 {
                     var inner = pg.Upstreams.Aggregate(FoldAcc.Empty, Fold(rootVal));
 
-                    ac = ac.Mode switch
+                    ac = (ac.FoundRoot, inner.FoundRoot) switch
                     {
-                        FoldMode.Grasping => inner.Mode switch
-                        {
-                            FoldMode.Grasping => ac with
+                        (false, false) =>
+                            //WE ARE ROOT
+                            //actually - we could have found something ephemeral here
+                            inner with
                             {
-                                //WE ARE ROOT
-                                //everything below us is ours - though spaces could still be separated out here
-                                Mode = FoldMode.Clenched,
-                                Centre = [..ac.Centre, ..inner.Left, ..inner.Centre, ..inner.Right]
+                                FoundRoot = true,
+                                Clutched = [..ac.Clutched, new Clutch.Root(inner.Clutched)]
                             },
-                            FoldMode.Clenched => ac with
-                            {
-                                //ROOT IS BELOW US
-                                //we are intermediate and singular (unless root node is passed back multiple times!)
-                                //therefore we can absorb gutters
-                                Mode = FoldMode.Clenched,
-                                Left = [..ac.Left, ..inner.Left],
-                                Centre = [..ac.Centre, ..inner.Centre],
-                                Right = inner.Right
+                        (false, true) =>
+                            //ROOT IS WITHIN
+                            inner with { Clutched = [..ac.Clutched, ..inner.Clutched] },
+                        (true, _) =>
+                            //WE HAVE ALREADY PASSED ROOT
+                            inner with 
+                            { 
+                                FoundRoot = true, 
+                                Clutched = [..ac.Clutched, ..inner.Clutched] 
                             },
-                            _ => throw new NotImplementedException()
-                        },
-                        FoldMode.Clenched => ac with
-                        {
-                            //WE ARE PAST ROOT
-                            //as such everything goes in right gutter
-                            Right = [..ac.Right, ..inner.Left, ..inner.Centre, ..inner.Right]
-                        },
-                        _ => throw new NotImplementedException()
                     };
 
                     return ac with
                     {
-                        Certainty = ac.Certainty * inner.Certainty * pg.Addenda.Certainty,
-                        Upstreams = ac.Upstreams.AddRange(inner.Upstreams),
-                        Addenda = ac.Addenda + inner.Addenda
+                        Addenda = ac.Addenda + inner.Addenda + pg.Addenda,
                     };
                 }
                 
-                case ParsingGroup pg and Parsing<Parsable> pp:
-                    throw new NotImplementedException("WE ARE NOT ROOT - WHAT TO DO?");
-                
-                case ParsingText { Text: var text, Addenda: var addenda }:
-                {
-                    var extent = Extent.From(text.Readable);
-
-                    ac = ac.Mode switch
-                    {
-                        FoldMode.Grasping => ac with
-                        {
-                            Left = ac.Left.Add(extent)
-                        },
-                        FoldMode.Clenched => ac with
-                        {
-                            Right = ac.Right.Add(extent)
-                        },
-                        _ => throw new NotImplementedException()
-                    };
+                case ParsingGroup pg:
+                    ac = pg.Upstreams.Aggregate(ac, Fold(rootVal));
 
                     return ac with
                     {
-                        Certainty = ac.Certainty * addenda.Certainty,
-                        Addenda = ac.Addenda + addenda
+                        Addenda = ac.Addenda + pg.Addenda,
+                    };
+                
+                case ParsingText { Text: var text, Addenda: var addenda, IsSpace: var isSpace }:
+                {
+                    var extent = From(text.Readable);
+
+                    return ac with
+                    {
+                        Addenda = ac.Addenda + addenda,
+                        Clutched = [..ac.Clutched, new Clutch.Simple(extent, isSpace)]
                     };
                 }
 
@@ -174,22 +221,30 @@ public static class ParsingCompleter
             }
         };
 
-    record FoldAcc(FoldMode Mode, ImmutableArray<Extent> Left, ImmutableArray<Extent> Centre, ImmutableArray<Extent> Right, double Certainty, Addenda Addenda, ImmutableArray<Parsed> Upstreams)
+    /* the above is flattening the parse tree into a series of Clutches 
+     * but also aggregating various bits attached into the parse tree
+     * 
+     * currently, we have an intermediate grouping of bits
+     * we should just be able to flatten them except for the fact
+     * that some bits might have left/centre/rights
+     * though if they did, they would only be ephemeral anyway
+     * as the root value is not here!
+     */
+    
+    record FoldAcc(bool FoundRoot, ImmutableArray<Clutch> Clutched, Addenda Addenda, ImmutableArray<Parsed> Upstreams)
     {
-        public static readonly FoldAcc Empty = new(FoldMode.Grasping, [], [], [], 1, Addenda.Empty, []);
+        public static readonly FoldAcc Empty = new(false, [], Addenda.Empty, []);
     }
 
-    record Triple(bool IsRoot, Extent Left, Extent Centre, Extent Right);
-    
-
-    enum FoldMode
+    record Clutch
     {
-        Grasping, Clenched
+        public record Simple(Extent Extent, bool IsSpace) : Clutch;
+        public record Triple(Extent Left, Extent Centre, Extent Right) : Clutch;
+        public record Intermediate(ImmutableArray<Clutch> Clutched) : Clutch;
+        public record Root(ImmutableArray<Clutch> Clutched) : Clutch;
     }
     
-    
-    
-    class Folded<N>(double certainty, Extent left, Extent centre, Extent right, Addenda addenda, N value, Parsed[] upstreams) : Parsed<N> where N: Parsable
+    class Folded<N>(Extent left, Extent centre, Extent right, Addenda addenda, N value, Parsed[] upstreams) : Parsed<N> where N: Parsable
     {
         public Extent Left => left;
         public Extent Centre => centre;
@@ -198,6 +253,8 @@ public static class ParsingCompleter
         public Addenda Addenda => addenda;
         public N Value => value;
         public IEnumerable<Parsed> Upstreams => upstreams;
-        public double Certainty => certainty;
+
+        public override string ToString()
+            => $"({left}, {centre}, {right})";
     }
 }

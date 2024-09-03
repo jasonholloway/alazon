@@ -63,7 +63,7 @@ public static class ParserOps
                     continue;
                 }
                 
-                return new Result<N>(x, Parsing.From(n, acParsed));
+                return new Result<N>(x, Parsing.From(n, acParsed, Addenda.Empty));
             }
         })
         select z;
@@ -77,14 +77,13 @@ public static class ParserOps
             var acNodes = ImmutableArray<Node>.Empty;
             var acParsed = ImmutableArray<Parsing>.Empty;
             
-            while (inner.Run(x) is { Context: var x1, Parsing: { Val: not null } parsing })
+            while (inner.Run(x) is { Context: var x1, Parsing: { Val: {} val, Addenda: { Certainty: 1 } } parsing })
             {
-                (acParsed, acNodes) = parsing switch
+                (acParsed, acNodes) = val switch
                 {
-                    null => (acParsed, acNodes),
-                    { Val: Node.Syntax } => (acParsed.Add(parsing), acNodes),
-                    { Val: Node.List { Nodes: var nested } } => (acParsed.Add(parsing), acNodes.AddRange(nested)),
-                    { Val: var val } => (acParsed.Add(parsing), acNodes.Add(val)),
+                    Node.Syntax => (acParsed.Add(parsing), acNodes),
+                    Node.List { Nodes: var nested } => (acParsed.Add(parsing), acNodes.AddRange(nested)),
+                    _ => (acParsed.Add(parsing), acNodes.Add(val))
                 };
                 x = x1;
             }
@@ -96,7 +95,7 @@ public static class ParserOps
 
             return new Result<Node.List>(
                 x, 
-                Parsing.From(new Node.List(acNodes), acParsed)
+                Parsing.From(new Node.List(acNodes), acParsed, Addenda.Empty)
                 );
         });
 
@@ -111,14 +110,14 @@ public static class ParserOps
                 {
                     case (_, null): continue;
                     
-                    case (_, { Parsing.Certainty: 1 } p):
+                    case (_, { Parsing.Addenda.Certainty: 1 } p):
                         return p; 
                     
                     case (null, {} p):
                         best = p;
                         break;
                     
-                    case ({ Parsing.Certainty: var bestCertainty }, { Parsing.Certainty: var certainty } p) 
+                    case ({ Parsing.Addenda.Certainty: var bestCertainty }, { Parsing.Addenda.Certainty: var certainty } p) 
                         when certainty > bestCertainty:
                         best = p;
                         break;
@@ -127,12 +126,6 @@ public static class ParserOps
 
             return best!;
         });
-    
-    public static IParser<Node.Partial<N>> Partial<N>(IParser<N> inner)
-        where N : Node
-    {
-        throw new NotImplementedException();
-    }
     
     public static IParser<TToken> Take<TToken>(Func<TToken, bool>? match = null)
         where TToken : Token
@@ -144,7 +137,7 @@ public static class ParserOps
             {
                 return new Result<TToken>(
                     x with { Tokens = x.Tokens.Dequeue() },
-                    Parsing.From(token, text)
+                    Parsing.From(token, text, Addenda.Empty)
                 );
             }
 
@@ -157,7 +150,7 @@ public static class ParserOps
 
     public static IParser<N> Return<N>(N node) => 
         Parser.Create(x => 
-            new Result<N>(x, Parsing.From(node, []))
+            new Result<N>(x, Parsing.From(node, [], Addenda.Empty))
         );
 
     public record Context(ImmutableQueue<Lexed> Tokens, int Precedence);

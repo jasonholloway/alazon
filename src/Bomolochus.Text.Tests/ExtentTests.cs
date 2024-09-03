@@ -87,8 +87,8 @@ public class ExtentTests
     [Test]
     public void Groups_Simple()
     {
-        var tree = Extent.From(
-            Extent.From(
+        var tree = Extent.Combine(
+            Extent.Combine(
                 Extent.From("a"),
                 Extent.From("b")
             ),
@@ -102,13 +102,13 @@ public class ExtentTests
         Assert.That(tree.ReadAll(), Is.EqualTo("abc"));
         
         Assert.That(grouped, Is.EqualTo(
-            Extent.From(
+            Extent.Combine(
                 Extent.From("b"),
                 Extent.From("c")
             )));
         
         Assert.That(tree, Is.EqualTo(
-            Extent.From(
+            Extent.Combine(
                 Extent.From("a"),
                 grouped
             )));
@@ -119,10 +119,10 @@ public class ExtentTests
     [Test]
     public void Groups_TwoSurplus()
     {
-        var tree = Extent.From(
-            Extent.From(
+        var tree = Extent.Combine(
+            Extent.Combine(
                 Extent.From("a"),
-                Extent.From(
+                Extent.Combine(
                     Extent.From("b"),
                     Extent.From("c")
                     )
@@ -134,7 +134,7 @@ public class ExtentTests
         var grouped = Extent.Group(Right(Right(Left(tree))), Right(tree));
         
         Assert.That(grouped, Is.EqualTo(
-            Extent.From(
+            Extent.Combine(
                 Extent.From("c"),
                 Extent.From("d")
             )));
@@ -143,16 +143,16 @@ public class ExtentTests
     [Test]
     public void Groups_SubTrees()
     {
-        var tree = Extent.From(
-            Extent.From(
+        var tree = Extent.Combine(
+            Extent.Combine(
                 Extent.From("a"),
-                Extent.From(
+                Extent.Combine(
                     Extent.From("b"),
                     Extent.From("c")
                     )
             ),
-            Extent.From(
-                Extent.From( 
+            Extent.Combine(
+                Extent.Combine( 
                     Extent.From("d"),
                     Extent.From("e")
                     ),
@@ -167,9 +167,9 @@ public class ExtentTests
             );
         
         Assert.That(grouped, Is.EqualTo(
-            Extent.From(
+            Extent.Combine(
                 Extent.From("c"),
-                Extent.From(
+                Extent.Combine(
                     Extent.From("d"),
                     Extent.From("e")
                 )

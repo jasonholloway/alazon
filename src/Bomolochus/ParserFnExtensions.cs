@@ -14,7 +14,7 @@ public static class ParserFnExtensions
             { Context: var x2, Parsing: var parsed  } =>
                 new Result<B>(x2, parsed switch
                 {
-                    { Val: var val } => Parsing.From(map(val), [parsed], parsed.Certainty),
+                    { Val: var val } => Parsing.From(map(val), [parsed], parsed.Addenda),
                     null => null
                 }),
             null => null
@@ -78,24 +78,25 @@ public static class ParserFnExtensions
                             ({} a, {} b) => Parsing.From(
                                 join(pv1, pv2), 
                                 upstreams, 
-                                (a.Certainty + b.Certainty) / 2
+                                a.Addenda + b.Addenda
                                 ),
                             
                             (null, null) => Parsing.From(
                                 join(pv1, pv2), 
-                                upstreams
+                                upstreams,
+                                Addenda.Empty
                                 ),
                             
                             ({} a, _) => Parsing.From(
                                 join(pv1, pv2), 
                                 upstreams,
-                                a.Certainty
+                                a.Addenda
                                 ),
                             
                             (_, {} b) => Parsing.From(
                                 join(pv1, pv2), 
                                 upstreams,
-                                b.Certainty
+                                b.Addenda
                                 )
                         }
                     );
