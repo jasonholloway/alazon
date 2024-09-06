@@ -31,6 +31,7 @@ public class Tests
     [TestCase("A = (1|2|3)", "Is[Ref(A), (Or[Number(1), Number(2), Number(3)])]")]
     [TestCase("***", "!Noise")]
     [TestCase("A = ", "!Is[Ref(A), !?]")]
+    [TestCase("A.B = 3", "Is[Prop(Ref(A), Ref(B)), Number(3)]")]
     [TestCase("", "NULL")]
     public void ParsesExpressions(string text, string expected)
     {
@@ -99,6 +100,7 @@ public class Tests
     [TestCase("(7)", "<0,0-0,3>(<0,1-0,2>Number(7))")]
     [TestCase("A = (1 & B)", "<0,0-0,11>Is[<0,0-0,1>Ref(A), <0,4-0,11>(<0,5-0,10>And[<0,5-0,6>Number(1), <0,9-0,10>Ref(B)])]")]
     [TestCase(" Z = 1 ", "<0,1-0,6>Is[<0,1-0,2>Ref(Z), <0,5-0,6>Number(1)]")]
+    [TestCase("A.B", "<0,0-0,3>Prop(<0,0-0,1>Ref(A), <0,2-0,3>Ref(B))")]
     public void ParsesExpressionsWithExtents(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);

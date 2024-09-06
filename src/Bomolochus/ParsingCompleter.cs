@@ -34,6 +34,55 @@ public static class ParsingCompleter
         
         return folded;
     }
+    
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //todo we're not after root below,
+    //but after FIRST NON SPACE
+    //in both directions
+    //with left and right gutters always being absorbed upwards
+    //
+    //or is this FIRST PARSABLE?
+    //parsables are what gets represented
+    //all else is spurious clutter
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    // though, does this work with unaries?
+    // a++
+    // evidently has '++'
+    // which under the above scheme
+    // well no actually, as the full lot above would be covered by Root, albeit with potential Space
+    
+    /* but in '= 3'
+     * the equals does not belong to our node!
+     * though the three is the root
+     * and the equals is on an intermediate
+     * it isn't a node though
+     *
+     * if we're in an intermediate
+     * and we find a subnode in situ
+     * then - you'd think we must be in root - but we might not be!
+     * 
+     * I'm imagining now an intermediate that isn't a root, and yet contains non-root subnodes
+     * so we're in a parsing, and our value has its minimal expression in a subnode
+     * (which makes us an intermediate)
+     * and in this state we find another
+     * this would only happen if a node was parsed but thrown away I think - which is possible though odd
+     * an intersting edge case        
+     *
+     * think of eg an empty list as a byproduct of parsing (realistic)
+     * this list was jetisoned because of its emptiness
+     * do we want it then if it doesn't play a part in the semantic value?
+     * not really... an opinionated approach here would be to chuck it
+     * if we've not claimed it into the semantic tree, it _must_ be fluff
+     * and as fluff, it should float off unowned
+     * until it finds its maximum home within a covering node
+     * fluff should float, and fluff might be a non-space node
+     *
+     * that's nicely decided then
+     * 
+     * so, yes, it is about finding root
+     * we have our current value, and we want to find our minimal representation
+     */
 
     static (Extent Left, Extent Centre, Extent Right) DistributeExtents(ImmutableArray<Clutch> clutched)
     {
@@ -41,29 +90,44 @@ public static class ParsingCompleter
         var centre = Empty;
         var right = Empty;
 
+        bool foundSubVal = false;
         bool foundRoot = false;
 
         foreach (var clutch in clutched)
         {
-            switch (foundRoot, clutch)
+            switch (foundSubVal, foundRoot, clutch)
             {
-                case (false, Clutch.Simple(var e, _)):
+                case (false, false, Clutch.Simple(var e, _)):
                     left += e;
                     break;
                 
-                case (true, Clutch.Simple(var e, _)):
+                case (true, false, Clutch.Simple(var e, _)):
+                    centre += e;
+                    break;
+                
+                case (_, true, Clutch.Simple(var e, _)):
                     right += e;
                     break;
                 
-                case (false, Clutch.Triple(var l, var c, var r)):
-                    left += l + c + r;
+                
+                case (false, false, Clutch.Triple(var l, var c, var r)):
+                    left += l;
+                    centre += c + r;
+                    foundSubVal = true;
                     break;
                 
-                case (true, Clutch.Triple(var l, var c, var r)):
+                case (true, false, Clutch.Triple(var l, var c, var r)):
+                    centre += l + c + r;
+                    foundSubVal = true;
+                    break;
+                
+                case (_, true, Clutch.Triple(var l, var c, var r)):
                     right += l + c + r;
+                    foundSubVal = true;
                     break;
                 
-                case (_, Clutch.Root(var inner)):
+                
+                case (_, _, Clutch.Root(var inner)):
                     var rootRest = new Stack<Clutch>(inner.Length);
                     var rootFoundNonSpace = false;
                     
@@ -134,9 +198,6 @@ public static class ParsingCompleter
                     right += rootRight;
                     
                     foundRoot = true;
-                    break;
-                
-                case (_, Clutch.Intermediate(var inner)):
                     break;
             }
         }
@@ -240,7 +301,6 @@ public static class ParsingCompleter
     {
         public record Simple(Extent Extent, bool IsSpace) : Clutch;
         public record Triple(Extent Left, Extent Centre, Extent Right) : Clutch;
-        public record Intermediate(ImmutableArray<Clutch> Clutched) : Clutch;
         public record Root(ImmutableArray<Clutch> Clutched) : Clutch;
     }
     

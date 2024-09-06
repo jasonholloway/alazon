@@ -8,7 +8,7 @@ public static class Diagnoser
 {
     public static IObservable<Document> Diagnose(Uri uri, IObservable<string> texts) =>
         texts
-            .Select(ExampleParser.ParseRules.Run)   
+            .Select(text => ExampleParser.ParseRules.Run(text))   
             .Select((parsed, version) =>
             {
                 var doc = new ParsedDoc(Extent.Combine(parsed.Left, Extent.Combine(parsed.Centre, parsed.Right)), parsed);

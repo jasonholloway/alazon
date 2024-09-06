@@ -47,7 +47,7 @@ public class RpcReceiver(JsonRpc rpc, Func<Uri, IObservable<string>, IObservable
             
             return new
             {
-                contents = Printer.Print(parsed.Doc, found),
+                contents = Printer.Print(parsed.Doc, found, Printer.Flags.WithExtents),
                 range = new {
                     start = new
                     {

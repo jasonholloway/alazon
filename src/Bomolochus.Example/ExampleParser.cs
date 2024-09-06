@@ -14,17 +14,16 @@ public static class ExampleParser
                 ImmutableQueue.CreateRange(new ExampleLexer(text).Lex()), 8)
             )?.Parsing?.Complete();
     }
-    
-    public static IParser<Node.List> ParseRules =>
-        Many(ParseRule);
+
+    public static IParser<Node.Rules> ParseRules =>
+        from rules in Many(ParseRule)
+        select new Node.Rules(rules);
 
     private static IParser<Node.Rule> ParseRule =>
         from expr in Optional(ParseExpression)
-        from block in OneOf(ParseStatement, Expect("Expected statement"))
+        from block in OneOf(ParseStatements, Expect("Expected statement block"))
         select new Node.Rule(expr, block);
 
-
-    /// Exp = Name|Value + (Noise|(ExpOp + Exp))?
 
     public static IParser<Node> ParseExpression =>
         ParseDisjunction;
@@ -37,7 +36,7 @@ public static class ExampleParser
             select next
         ))
         select tail != null
-            ? new Node.Or([head, ..tail.Nodes])
+            ? new Node.Or([head, ..tail])
             : head;
 
     static IParser<Node> ParseConjunction =>
@@ -48,7 +47,7 @@ public static class ExampleParser
             select next
         ))
         select tail != null
-            ? new Node.And([head, ..tail.Nodes])
+            ? new Node.And([head, ..tail])
             : head;
 
     static IParser<Node> ParseEquality =>
@@ -59,7 +58,7 @@ public static class ExampleParser
             select next
         ))
         select tail != null 
-            ? new Node.Is([head, ..tail.Nodes]) 
+            ? new Node.Is([head, ..tail]) 
             : head;
 
     private static IParser<Node> ParseProp =>
@@ -77,61 +76,94 @@ public static class ExampleParser
             ParseValueNode,
             ParseNoise
             );
+    
+    
+    /* In the world of AWK
+     * statements are different from expressions
+     *
+     * a statement could be an assignment
+     * which would have to be separated by semicolon
+     *
+     * or it could be a call of a function
+     *
+     *
+     * 
+     */
+    
+    
+    
+    
 
-    public static IParser<Node.List> ParseStatements =>
-        from head in ParseStatement
+    public static IParser<Node.Statements> ParseStatements =>
+        from open in Take<Token.OpenBrace>()
+        from head in ParseExpression
         from rest in Many(
             from sep in Take<Token.Semicolon>()
-            from next in ParseStatement
+            from next in ParseExpression
             select next
         )
-        select Node.List.Cons(head, rest);
-
-    private static IParser<Node> ParseStatement =>
-        Expand(ParseUnaryStatement, ParseBinaryStatement);
-
-    private static IParser<Node> ParseUnaryStatement =>
-        OneOf(
-            ParseBraces,
-            ParseCall,
-            ParseNameNode,
-            ParseValueNode,
-            ParseNoise
-        );
-
-    static IParser<Node> ParseBinaryStatement(Node left) =>
-        from op in Take<Token.Op>()
-        from statement in op switch
-        {
-            Token.Op.Dot =>
-                from name in ParseNameNode
-                select new Node.Prop(left, name) as Node,
-            Token.Op.Incr =>
-                Barrier(1,
-                    from exp in ParseExpression
-                    select new Node.Incr(left, exp)
-                ),
-            _ => null //need something better here?
-        }
-        select statement;
-
-    //todo below should emit a Block node, not a simple List
-    private static IParser<Node> ParseBraces =>
-        from open in Take<Token.OpenBrace>()
-        from statements in ParseStatements
         from close in Take<Token.CloseBrace>()
-        select new Node.Braces(statements);
+        select new Node.Statements([head, ..rest]);
 
-    private static IParser<Node.Call> ParseCall =>
-        from name in ParseNameNode
-        from open in Take<Token.OpenBracket>()
-        from arg0 in Isolate(ParseExpression)
-        from close in Take<Token.CloseBracket>()
-        select new Node.Call(name, [arg0]);
+    // private static IParser<Node> ParseStatement =>
+    //     Expand(ParseUnaryStatement, ParseBinaryStatement);
+
+
+    //
+    //
+    // static IParser<Node> ParseStatementTerminal =>
+    //     OneOf(
+    //         ParseBraces,
+    //         ParseNameNode,
+    //         ParseValueNode,
+    //         ParseNoise
+    //         );
+    //
+    //
+    //
+    //
+    //
+    // static IParser<Node> ParseUnaryStatement =>
+    //     OneOf(
+    //         ParseBraces,
+    //         ParseCall,
+    //         ParseNameNode,
+    //         ParseValueNode,
+    //         ParseNoise
+    //     );
+    //
+    // static IParser<Node> ParseBinaryStatement(Node left) =>
+    //     from op in Take<Token.Op>()
+    //     from statement in op switch
+    //     {
+    //         Token.Op.Dot =>
+    //             from name in ParseNameNode
+    //             select new Node.Prop(left, name) as Node,
+    //         Token.Op.Incr =>
+    //             Barrier(1,
+    //                 from exp in ParseExpression
+    //                 select new Node.Incr(left, exp)
+    //             ),
+    //         _ => null //need something better here?
+    //     }
+    //     select statement;
+
+    // private static IParser<Node> ParseBraces =>
+    //     from open in Take<Token.OpenBrace>()
+    //     from statements in ParseStatements
+    //     from close in Take<Token.CloseBrace>()
+    //     select new Node.Braces(statements.Inner); //statements should just return an array, ready to be wrapped
+
+    // private static IParser<Node.Call> ParseCall =>
+    //     from name in ParseNameNode
+    //     from open in Take<Token.OpenBracket>()
+    //     from arg0 in Isolate(ParseExpression)
+    //     from close in Take<Token.CloseBracket>()
+    //     select new Node.Call(name, [arg0]);
 
     private static IParser<Node> ParseBrackets =>
         from open in Take<Token.OpenBracket>()
-        from exp in Isolate(ParseExpression)
+        from exp in ParseExpression
         from close in Take<Token.CloseBracket>()
         select new Node.Brackets(exp);
 

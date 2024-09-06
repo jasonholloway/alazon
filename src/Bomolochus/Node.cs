@@ -14,7 +14,7 @@ public abstract record Node : Parsable, Annotatable
     public record Number(int Val) : Value;
 
     public record Brackets(Node Inner) : Node;
-    public record Braces(List Inner) : Node;
+    public record Braces(ImmutableArray<Node> Inner) : Node;
     
     public record BinaryExpression(Node Left, Node Right) : Node;
     public record Prop(Node Left, Node Right) : BinaryExpression(Left, Right);
@@ -25,16 +25,8 @@ public abstract record Node : Parsable, Annotatable
     
     public record Rule(Node? Condition, Node Statement) : Node;
 
-    public record List(ImmutableArray<Node> Nodes) : Node
-    {
-        public static List Cons(Node head, List tail) => new(
-            ImmutableArray<Node>.Empty
-                .Add(head)
-                .AddRange(tail.Nodes)
-            );
-    }
-
-    public record Partial<N>(Node Node, Noise Rest) where N : Node;
+    public record Rules(ImmutableArray<Rule> Inner) : Node;
+    public record Statements(ImmutableArray<Node> Inner) : Node;
 
     public record Noise : Node;
     public record Syntax : Node;
