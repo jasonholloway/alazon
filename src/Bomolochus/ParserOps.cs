@@ -79,16 +79,18 @@ public static class ParserOps
         {
             var acNodes = ImmutableArray<N>.Empty;
             var acParsed = ImmutableArray<Parsing>.Empty;
+            var certainty = 1D;
             
-            while (inner.Run(x) is { Context: var x1, Parsing: { Val: {} val, Addenda: { Certainty: 1 } } parsing })
+            while (certainty >= 1 
+                   && inner.Run(x) is { Context: var x1, Parsing: { Val: {} val } parsing })
             {
                 (acParsed, acNodes) = val switch
                 {
                     Node.Syntax => (acParsed.Add(parsing), acNodes),
-                    // Node.List { Nodes: var nested } => (acParsed.Add(parsing), acNodes.AddRange(nested)),
                     _ => (acParsed.Add(parsing), acNodes.Add(val))
                 };
                 x = x1;
+                certainty *= parsing.Addenda.Certainty;
             }
 
             if (nullOnEmpty && acNodes.IsEmpty)
@@ -146,6 +148,26 @@ public static class ParserOps
 
             return null;
         });
+    
+    /* TODO
+     * for Expect to be able to capture a slim Extent dynamically
+     * we need DYNAMIC LEXING!
+     * no way round this
+     * as an expectation can't be known till we parse
+     *
+     * but - parsing requires jump-backability
+     * and our Extents are currently mutable
+     * No! we just need Splits
+     * they become 'proper' immovable mutables only on sealing, I believe
+     *
+     * there we go then...
+     * DYNAMIC LEXING IS NEEDED!
+     * create SPLITS as we go
+     *
+     * which will allow us top flexibility in articulating Extents
+     * which is unavoidable for the Expect function
+     * so there we have it yes
+     */
     
         
     public static IParser<Node.Expect> Expect(string expectation)

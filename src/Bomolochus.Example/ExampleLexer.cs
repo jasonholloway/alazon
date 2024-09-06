@@ -32,11 +32,14 @@ public class ExampleLexer(Readable text) : Lexer(text)
         => TryReadChar(out var c) 
             ? c switch
             {
+                ',' => Emit(new Token.Comma()),
                 ';' => Emit(new Token.Semicolon()),
-                '(' => Emit(new Token.OpenBracket()),
-                ')' => Emit(new Token.CloseBracket()),
+                '(' => Emit(new Token.OpenParenthesis()),
+                ')' => Emit(new Token.CloseParenthesis()),
                 '{' => Emit(new Token.OpenBrace()),
                 '}' => Emit(new Token.CloseBrace()),
+                '[' => Emit(new Token.OpenBracket()),
+                ']' => Emit(new Token.CloseBracket()),
                 '&' => Emit(new Token.Op.And()),
                 '|' => Emit(new Token.Op.Or()),
                 '=' => Emit(new Token.Op.Is()),

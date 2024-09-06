@@ -20,14 +20,14 @@ public abstract class Extent
         => new ExtentLeaf(readable);
 
 
-    public static Extent Combine(params Extent[] extents)
+    public static Extent Combine(params Extent?[] extents)
         => extents.Aggregate(Empty, Combine);
     
 
-    public static Extent Combine(Extent left, Extent right)
+    public static Extent Combine(Extent? left, Extent? right)
     {
-        if (left is ExtentEmpty) return right;
-        if (right is ExtentEmpty) return left;
+        if (left is null or ExtentEmpty) return right ?? Empty;
+        if (right is null or ExtentEmpty) return left;
 
         var node = new ExtentNode(left, right);
         left.Parent = new ParentLink(ParentLinkType.Left, node);

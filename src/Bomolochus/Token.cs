@@ -6,13 +6,17 @@ public abstract record Token
 {
     public record Space : Token;
     
+    public record Comma : Token;
     public record Semicolon : Token;
     
-    public record OpenBracket : Token;
-    public record CloseBracket : Token;
+    public record OpenParenthesis : Token;
+    public record CloseParenthesis : Token;
     
     public record OpenBrace : Token;
     public record CloseBrace : Token;
+    
+    public record OpenBracket : Token;
+    public record CloseBracket : Token;
     
     public record Name(Readable Readable) : Token;
     

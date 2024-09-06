@@ -33,10 +33,13 @@ public class Tests
     [TestCase("A = ", "!Is[Ref(A), !?]")]
     [TestCase("A.B = 3", "Is[Prop(Ref(A), Ref(B)), Number(3)]")]
     [TestCase("", "NULL")]
+    [TestCase("[1, 2]", "[Number(1), Number(2)]")]
+    [TestCase("[1, *** ]", "![Number(1), !Noise]")] //nb the necessity of the space to stop the closing bracket being absorbed into noise token
+    [TestCase("[1, ]", "![Number(1), !?]")]
     public void ParsesExpressions(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
-        var doc = new ParsedDoc(Extent.Combine(tree?.Left ?? Extent.Empty, Extent.Combine(tree?.Centre ?? Extent.Empty, tree?.Right ?? Extent.Empty)), tree);
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);
         
         Assert.That(Print(doc), Is.EqualTo(PrepNodeString(expected)));
     }
@@ -45,8 +48,8 @@ public class Tests
     [TestCase("Woof(1); Meeow(2)", "[Call(Ref(Woof), Number(1)), Call(Ref(Meeow), Number(2))]")]
     public void ParsesStatements(string text, string expected)
     {
-        var tree = ExampleParser.ParseStatements.Run(text);
-        var doc = new ParsedDoc(Extent.Combine(tree.Left, Extent.Combine(tree.Centre, tree.Right)), tree);
+        var tree = ExampleParser.ParseStatementBlock.Run(text);
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);
         
         Assert.That(Print(doc), Is.EqualTo(PrepNodeString(expected)));
     }
@@ -65,7 +68,7 @@ public class Tests
     public void ParsesRules(string text, string expected)
     {
         var tree = ExampleParser.ParseRules.Run(text);
-        var doc = new ParsedDoc(Extent.Combine(tree.Left, Extent.Combine(tree.Centre, tree.Right)), tree);
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);
         
         Assert.That(Print(doc), Is.EqualTo(PrepNodeString(expected)));
     }
@@ -77,7 +80,7 @@ public class Tests
     public void ParsesExpressionsWithSizes(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
-        var doc = new ParsedDoc(Extent.Combine(tree.Left, Extent.Combine(tree.Centre, tree.Right)), tree);
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);
         
         Assert.That(Print(doc, Flags.WithSizes), Is.EqualTo(PrepNodeString(expected)));
     }
@@ -104,27 +107,10 @@ public class Tests
     public void ParsesExpressionsWithExtents(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
-        var doc = new ParsedDoc(Extent.Combine(tree.Left, Extent.Combine(tree.Centre, tree.Right)), tree);
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);
         
         Assert.That(Print(doc, Flags.WithExtents), Is.EqualTo(PrepNodeString(expected)));
     }
-    
-    //todo brackets are textual (if not semantic) nodes, they can't just be treated as asymmetrical formless space
-    //they're textual nodes, but with a 'transparent' flag
-    //space could also be a node if we're being whitespace aware - which we should be!
-    //many things are whitespace aware - not just python and yaml, but multiline strings commonly are
-    //just as newlines are significant and semantic
-    //newlines generate lines (ie statements + leading whitespace)
-    //so space shouldn't be completely transparent
-    //
-    // yet in Z = 1, the gaps between symbols are insignificant
-    // we need some way of controlling space, and indicating whether it's significant or not
-    // insignificant space can truly be jetisoned from the off
-    // although - it only actually gets chucked as part of completion
-    // because of flags set on captured nodes
-    // how to control these flags?
-    //
-
 
     [TestCase("**", "!Noise")]
     [TestCase("Bob = **", "!Is[Ref(Bob), !Noise]")]
@@ -134,7 +120,7 @@ public class Tests
     public void ParseUncertainties(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
-        var doc = new ParsedDoc(Extent.Combine(tree.Left, Extent.Combine(tree.Centre, tree.Right)), tree);
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);
         
         Assert.That(Print(doc), Is.EqualTo(PrepNodeString(expected)));
     }
@@ -151,16 +137,12 @@ public class Tests
     public void FindsNodes(string text, int line, int col, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
-        var doc = new ParsedDoc(Extent.Combine(tree.Left, Extent.Combine(tree.Centre, tree.Right)), tree);
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);
 
         var found = doc.Extent.FindParseds(line, col).FirstOrDefault();
         
         Assert.That(Print(doc, found), Is.EqualTo(PrepNodeString(expected)));
-        
-        //why are there so many upstreams?!?!
     }
-
-    
 
     static string PrepNodeString(string raw) =>
         string.Join(' ', raw.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));

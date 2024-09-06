@@ -25,3 +25,12 @@ public static class Diagnoser
                 );
             });
 }
+
+/* TODO
+ * we need to have the concept of a Cursor
+ * as an empty but substantial extent
+ * it would still exist in the tree as a floating point within the document
+ */
+
+
+

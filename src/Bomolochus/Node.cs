@@ -13,8 +13,7 @@ public abstract record Node : Parsable, Annotatable
     public record Regex(Readable Readable) : Value;
     public record Number(int Val) : Value;
 
-    public record Brackets(Node Inner) : Node;
-    public record Braces(ImmutableArray<Node> Inner) : Node;
+    public record ExpressionBlock(Node Inner) : Node;
     
     public record BinaryExpression(Node Left, Node Right) : Node;
     public record Prop(Node Left, Node Right) : BinaryExpression(Left, Right);
@@ -26,7 +25,8 @@ public abstract record Node : Parsable, Annotatable
     public record Rule(Node? Condition, Node Statement) : Node;
 
     public record Rules(ImmutableArray<Rule> Inner) : Node;
-    public record Statements(ImmutableArray<Node> Inner) : Node;
+    public record StatementBlock(ImmutableArray<Node> Inner) : Node;
+    public record List(ImmutableArray<Node> Elements) : Node;
 
     public record Noise : Node;
     public record Syntax : Node;

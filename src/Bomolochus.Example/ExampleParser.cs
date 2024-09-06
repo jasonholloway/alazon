@@ -21,7 +21,7 @@ public static class ExampleParser
 
     private static IParser<Node.Rule> ParseRule =>
         from expr in Optional(ParseExpression)
-        from block in OneOf(ParseStatements, Expect("Expected statement block"))
+        from block in OneOf(ParseStatementBlock, Expect("Expected statement block"))
         select new Node.Rule(expr, block);
 
 
@@ -61,7 +61,7 @@ public static class ExampleParser
             ? new Node.Is([head, ..tail]) 
             : head;
 
-    private static IParser<Node> ParseProp =>
+    static IParser<Node> ParseProp =>
         Expand(ParseTerminal,
             left => 
                 from op in Take<Token.Op.Dot>()
@@ -69,128 +69,83 @@ public static class ExampleParser
                 select new Node.Prop(left, right)
         );
     
-    private static IParser<Node> ParseTerminal =>
+    static IParser<Node> ParseTerminal =>
         OneOf(
-            ParseBrackets,
+            ParseExpressionBlock,
+            ParseList,
             ParseNameNode, 
             ParseValueNode,
             ParseNoise
             );
-    
-    
-    /* In the world of AWK
-     * statements are different from expressions
-     *
-     * a statement could be an assignment
-     * which would have to be separated by semicolon
-     *
-     * or it could be a call of a function
-     *
-     *
-     * 
-     */
-    
-    
-    
-    
 
-    public static IParser<Node.Statements> ParseStatements =>
+    public static IParser<Node.StatementBlock> ParseStatementBlock =>
         from open in Take<Token.OpenBrace>()
-        from head in ParseExpression
+        from head in Optional(ParseExpression)
         from rest in Many(
             from sep in Take<Token.Semicolon>()
             from next in ParseExpression
             select next
         )
         from close in Take<Token.CloseBrace>()
-        select new Node.Statements([head, ..rest]);
+        select new Node.StatementBlock(head == null ? [] : [head, ..rest]);
 
-    // private static IParser<Node> ParseStatement =>
-    //     Expand(ParseUnaryStatement, ParseBinaryStatement);
-
-
-    //
-    //
-    // static IParser<Node> ParseStatementTerminal =>
-    //     OneOf(
-    //         ParseBraces,
-    //         ParseNameNode,
-    //         ParseValueNode,
-    //         ParseNoise
-    //         );
-    //
-    //
-    //
-    //
-    //
-    // static IParser<Node> ParseUnaryStatement =>
-    //     OneOf(
-    //         ParseBraces,
-    //         ParseCall,
-    //         ParseNameNode,
-    //         ParseValueNode,
-    //         ParseNoise
-    //     );
-    //
-    // static IParser<Node> ParseBinaryStatement(Node left) =>
-    //     from op in Take<Token.Op>()
-    //     from statement in op switch
-    //     {
-    //         Token.Op.Dot =>
-    //             from name in ParseNameNode
-    //             select new Node.Prop(left, name) as Node,
-    //         Token.Op.Incr =>
-    //             Barrier(1,
-    //                 from exp in ParseExpression
-    //                 select new Node.Incr(left, exp)
-    //             ),
-    //         _ => null //need something better here?
-    //     }
-    //     select statement;
-
-    // private static IParser<Node> ParseBraces =>
-    //     from open in Take<Token.OpenBrace>()
-    //     from statements in ParseStatements
-    //     from close in Take<Token.CloseBrace>()
-    //     select new Node.Braces(statements.Inner); //statements should just return an array, ready to be wrapped
-
-    // private static IParser<Node.Call> ParseCall =>
-    //     from name in ParseNameNode
-    //     from open in Take<Token.OpenBracket>()
-    //     from arg0 in Isolate(ParseExpression)
-    //     from close in Take<Token.CloseBracket>()
-    //     select new Node.Call(name, [arg0]);
-
-    private static IParser<Node> ParseBrackets =>
-        from open in Take<Token.OpenBracket>()
+    static IParser<Node> ParseExpressionBlock =>
+        from open in Take<Token.OpenParenthesis>()
         from exp in ParseExpression
+        from close in Take<Token.CloseParenthesis>()
+        select new Node.ExpressionBlock(exp);
+    
+    
+    
+    // we want a dynamic noise parser
+    // which we can give a character set to
+    // ie, parse as noise until we find a separator...
+    // but to do this would require
+    // lazy tokenizing, and also repeatable tokenizing
+    // which'd be kind of nice actually
+    // given that amazing performance isn't our aim here
+    // it would also simplify the specification
+    // if tokens were removed
+    // or rather - if tokens were dynamic
+    // I like this idea, though it would be a violent convulsion of the code
+    // towards betterness!
+    
+    
+    static IParser<Node> ParseList =>
+        from open in Take<Token.OpenBracket>()
+        from head in ParseExpression
+        from rest in Many(
+            from comma in Take<Token.Comma>()
+            from next in OneOf(ParseExpression, Expect("BLAH"))
+            select next
+            )
         from close in Take<Token.CloseBracket>()
-        select new Node.Brackets(exp);
+        select new Node.List([head, ..rest]);
 
-    private static IParser<Node.Ref> ParseNameNode =>
+    static IParser<Node.Ref> ParseNameNode =>
         from name in Take<Token.Name>()
         select new Node.Ref(name.Readable);
 
-    private static IParser<Node> ParseValueNode =>
+    static IParser<Node> ParseValueNode =>
         OneOf(
             ParseString,
             ParseRegex,
             ParseNumber
         );
 
-    private static IParser<Node> ParseString =>
+    static IParser<Node> ParseString =>
         from str in Take<Token.Value.String>()
         select new Node.String(str.Readable);
 
-    private static IParser<Node> ParseRegex =>
+    static IParser<Node> ParseRegex =>
         from regex in Take<Token.Value.Regex>()
         select new Node.Regex(regex.Readable);
 
-    private static IParser<Node> ParseNumber =>
+    static IParser<Node> ParseNumber =>
         from num in Take<Token.Value.Number>()
         select new Node.Number(num.Val);
 
-    private static IParser<Node> ParseNoise =>
+    static IParser<Node> ParseNoise =>
         from noise in Take<Token.Noise>() //todo: parse for noise repeatedly forwards
         select new Node.Noise().WithError("Unrecognised symbol");
 }
