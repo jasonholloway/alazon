@@ -168,7 +168,6 @@ public static class ParserOps
      * which is unavoidable for the Expect function
      * so there we have it yes
      */
-    
         
     public static IParser<Node.Expect> Expect(string expectation)
         => Return(new Node.Expect()).WithError(expectation);

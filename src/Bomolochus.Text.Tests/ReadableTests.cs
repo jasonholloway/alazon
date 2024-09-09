@@ -120,4 +120,48 @@ public class ReadableTests
         
         Assert.That(reader.TryReadChars(c => true, out _), Is.False);
     }
+    
+    [Test]
+    public void CanCheckpointRestore()
+    {
+        var readable = R("wo") + (R("of ") + (R("say") + R("s ") + R("the")) + (R(" ") + R(" d"))) + R("og, sometimes");
+        var reader = new ReadableReader(readable);
+        
+        Assert.That(reader.TryReadChars(c => c != ' ', out var r0), Is.True);
+        Assert.That(r0.ReadAll(), Is.EqualTo("woof"));
+        
+        Assert.That(reader.TryReadChars(c => c == ' ', out var r1), Is.True);
+        Assert.That(r1.ReadAll(), Is.EqualTo(" "));
+        
+        Assert.That(reader.TryReadChars(c => c != ' ', out var r2), Is.True);
+        Assert.That(r2.ReadAll(), Is.EqualTo("says"));
+        
+        Assert.That(reader.TryReadChars(c => c == ' ', out var r3), Is.True);
+        Assert.That(r3.ReadAll(), Is.EqualTo(" "));
+
+        var c0 = reader.Checkpoint();
+        
+        Assert.That(reader.TryReadChars(c => c != ' ', out var r4), Is.True);
+        Assert.That(r4.ReadAll(), Is.EqualTo("the"));
+        
+        Assert.That(reader.TryReadChars(c => c == ' ', out var r5), Is.True);
+        Assert.That(r5.ReadAll(), Is.EqualTo(" "));
+        
+        var c1 = reader.Checkpoint();
+        
+        Assert.That(reader.TryReadChars(c => c != ' ', out var r6), Is.True);
+        Assert.That(r6.ReadAll(), Is.EqualTo("dog"));
+        
+        reader.ResetTo(c1);
+        
+        Assert.That(reader.TryReadChars(c => c != ' ', out var r7), Is.True);
+        Assert.That(r7.ReadAll(), Is.EqualTo("dog"));
+        
+        reader.ResetTo(c0);
+        
+        Assert.That(reader.TryReadChars(c => c != ' ', out var r8), Is.True);
+        Assert.That(r8.ReadAll(), Is.EqualTo("dog"));
+    }
+    
+    static Readable R(string s) => Readable.From(s);
 }

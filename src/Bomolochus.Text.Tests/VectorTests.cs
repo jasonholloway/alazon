@@ -26,3 +26,6 @@ public class VectorTests
             Is.EqualTo(new TextVec(offset1, line1, col1))
             );
 }
+
+
+

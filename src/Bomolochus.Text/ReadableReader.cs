@@ -2,18 +2,31 @@ using System.Text;
 
 namespace Bomolochus.Text;
 
-//TextVec's come with Readable?
-//
-//
-//
-//
-//
-
-
-//todo should Extents cache their Readable?
-//instead of reforming the tree on each use?
-//possibly - but we need to have the readable available on Extent construction
-//which we might have...
+/* when we take text and decide against it
+ * we do go back and forth
+ * either we use immutable structures throughout and lean heavily on the GC for each small parsing
+ * or we capture checkpoints at opportune moments
+ *
+ * So on every conjunction
+ * we must capture the state
+ * and reset between branches
+ * but this is only necessary in OneOf
+ *
+ * ReadableReader and TextSplitter then both need checkpointing
+ * and TextSplitter needs to be at hand to the parser (in its context?)
+ *
+ * but a checkpoint is problematic below
+ * as we don't just have a monotonic number
+ * but a stack full of information
+ * (which itself effectively just a buffer with a cursor)
+ *
+ * so we parse into a branch
+ * which forms a sausage of splits
+ * we read forward and fail
+ * not sure actually how we can avoid an immutable structure here
+ * unless we copy the stack on checkpoint
+ * 
+ */
 
 /// <summary>
 /// Mutable walker through a Readable to yield spans to read 
@@ -117,8 +130,6 @@ public class ReadableReader(Readable readable)
         return false;
     }
 
-
-
     public bool TryReadChar(out char @char)
     {
         while (TryPop(out var buff))
@@ -167,4 +178,38 @@ public class ReadableReader(Readable readable)
 
     public string ReadAll()
         => Visit(new StringBuilder(), (sb, span) => sb.Append(span)).ToString();
+
+    public object Checkpoint()
+    {
+        throw new NotImplementedException();
+    }
+
+    public void ResetTo(object c0)
+    {
+        throw new NotImplementedException();
+    }
+    
+    // but a checkpoint
+    // pushes we can queue up
+    // but pops back out?
+    // pops will first clear out local data
+    // but soon they will intrude into the parent
+    // this is a mini-project in itself I feel
+    
+    /*
+     * 
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     * 
+     */
+    
 }

@@ -1,4 +1,5 @@
-﻿using Bomolochus.Text;
+﻿using System.Reflection.Metadata;
+using Bomolochus.Text;
 using NUnit.Framework;
 
 namespace Bomolochus.Example.Tests;
