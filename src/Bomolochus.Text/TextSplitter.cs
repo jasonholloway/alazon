@@ -25,4 +25,26 @@ public class TextSplitter(Readable readable)
 
     public string ReadAll()
         => _reader.ReadAll();
+
+
+    private readonly Stack<Checkpointed> _checkpoints = [];
+    public record Checkpointed(ReadableReader.Checkpointed ReaderCheckpoint, Split? LastSplit);
+
+    public Checkpointed Checkpoint()
+    {
+        var c = new Checkpointed(_reader.Checkpoint(), _lastSplit);
+        _checkpoints.Push(c);
+        return c;
+    }
+
+    public void RestoreTo(Checkpointed c)
+    {
+        Start:
+
+        var popped = _checkpoints.Pop();
+        if (popped != c) goto Start;
+        
+        _reader.ResetTo(popped.ReaderCheckpoint);
+        _lastSplit = popped.LastSplit;
+    }
 };

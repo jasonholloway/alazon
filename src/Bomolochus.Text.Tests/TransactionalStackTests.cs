@@ -5,12 +5,12 @@ namespace Bomolochus.Text.Tests;
 
 public class TransactionalStackTests
 {
-    private TransactionalStack<int> _stack;
+    private TransactionalStack.Transaction<int> _stack;
     
     [SetUp]
     public void Setup()
     {
-        _stack = new TransactionalStack<int>(2);
+        _stack = TransactionalStack.Create<int>(2);
     }
     
     [Test]

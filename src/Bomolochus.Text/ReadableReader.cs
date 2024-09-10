@@ -2,47 +2,29 @@ using System.Text;
 
 namespace Bomolochus.Text;
 
-/* when we take text and decide against it
- * we do go back and forth
- * either we use immutable structures throughout and lean heavily on the GC for each small parsing
- * or we capture checkpoints at opportune moments
- *
- * So on every conjunction
- * we must capture the state
- * and reset between branches
- * but this is only necessary in OneOf
- *
- * ReadableReader and TextSplitter then both need checkpointing
- * and TextSplitter needs to be at hand to the parser (in its context?)
- *
- * but a checkpoint is problematic below
- * as we don't just have a monotonic number
- * but a stack full of information
- * (which itself effectively just a buffer with a cursor)
- *
- * so we parse into a branch
- * which forms a sausage of splits
- * we read forward and fail
- * not sure actually how we can avoid an immutable structure here
- * unless we copy the stack on checkpoint
- * 
- */
-
-/// <summary>
-/// Mutable walker through a Readable to yield spans to read 
-/// </summary>
-public class ReadableReader(Readable readable)
-{
-    enum State { ReadLeft, ReadRight }
-    
-    private readonly Stack<(State State, Readable Readable)> _stack = new([(State.ReadLeft, readable)]);
-    private Readable _staged = Readable.Empty;
-    
     //todo OPTIMISE: allow ReadableNodes to have List<Readable> children
     //with frame state containing integer cursor
     
     //todo OPTIMISE: store a current buffer
     //instead of popping/pushing on every character!
+
+/// <summary>
+/// Mutable walker through a Readable to yield spans to read 
+/// </summary>
+public class ReadableReader
+{
+    private TransactionalStack.Transaction<(State State, Readable Readable)> _stack;
+    private readonly Stack<Checkpointed> _checkpointed = [];
+    private Readable _staged = Readable.Empty;
+
+    public enum State { ReadLeft, ReadRight }
+    public record Checkpointed(Readable Staged, TransactionalStack.Transaction<(State, Readable)> Stack);
+
+    public ReadableReader(Readable readable)
+    {
+        _stack = TransactionalStack.Create<(State, Readable)>(32);
+        _stack.Push((State.ReadLeft, readable));
+    }
 
     public Readable Emit()
     {
@@ -179,37 +161,22 @@ public class ReadableReader(Readable readable)
     public string ReadAll()
         => Visit(new StringBuilder(), (sb, span) => sb.Append(span)).ToString();
 
-    public object Checkpoint()
+    public Checkpointed Checkpoint()
     {
-        throw new NotImplementedException();
+        var s = new Checkpointed(_staged, _stack);
+        _checkpointed.Push(s);
+        _stack = _stack.StartTransaction(16, 32);
+        return s;
     }
 
-    public void ResetTo(object c0)
+    public void ResetTo(Checkpointed c0)
     {
-        throw new NotImplementedException();
+        Start:
+        
+        var s = _checkpointed.Pop();
+        if(s != c0) goto Start;
+        
+        _stack = s.Stack;
+        _staged = s.Staged;
     }
-    
-    // but a checkpoint
-    // pushes we can queue up
-    // but pops back out?
-    // pops will first clear out local data
-    // but soon they will intrude into the parent
-    // this is a mini-project in itself I feel
-    
-    /*
-     * 
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     * 
-     */
-    
 }

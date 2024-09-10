@@ -1,20 +1,11 @@
-namespace Bomolochus.Text.Tests;
+namespace Bomolochus.Text;
 
-public class TransactionalStack<T>(int initialBufferSize = 256)
+public static class TransactionalStack
 {
-    private readonly Transaction _root = new(null, 0, 0, new T[initialBufferSize], 0);
+    public static Transaction<T> Create<T>(int initialBufferSize)
+        => new(null, 0, 0, new T[initialBufferSize], 0);
 
-    public void Push(T value)
-        => _root.Push(value);
-
-    public T Pop()
-        => _root.Pop();
-
-    public Transaction StartTransaction(int pullSize, int initialBufferSize)
-        => _root.StartTransaction(pullSize, initialBufferSize);
-
-
-    public class Transaction(Transaction? upstream, int upstreamVersion, int fromCursor, T[] buffer, int cursor)
+    public class Transaction<T>(Transaction<T>? upstream, int upstreamVersion, int fromCursor, T[] buffer, int cursor)
     {
         private int _version = 0;
         
@@ -45,7 +36,7 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
             return buffer[cursor - 1];
         }
 
-        public T Pop()
+        public bool TryPop(out T val)
         {
             if (cursor <= 0)
             {
@@ -53,12 +44,19 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
                 
                 if (cursor <= 0)
                 {
-                    throw new InvalidOperationException();
+                    val = default!;
+                    return false;
                 }
             }
             
-            return buffer[--cursor];
+            val = buffer[--cursor];
+            return true;
         }
+
+        public T Pop()
+            => TryPop(out var val) 
+                ? val 
+                : throw new InvalidOperationException();
 
         private void SuckUp()
         {
@@ -107,8 +105,8 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
             if (start <= 0)
             {
                 buffer = srcBuffer;
-                fromCursor += start;
                 cursor = srcLen;
+                fromCursor += start;
             }
             else
             {
@@ -133,7 +131,7 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
             upstream.Update(upstreamVersion, fromCursor, buffer, cursor);
         }
 
-        public Transaction StartTransaction(int initialPull, int initialSize) 
+        public Transaction<T> StartTransaction(int initialPull, int initialSize) 
             => new(this, _version, 0, new T[initialSize], 0);
     }
 }

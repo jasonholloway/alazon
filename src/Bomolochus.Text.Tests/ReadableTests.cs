@@ -124,7 +124,7 @@ public class ReadableTests
     [Test]
     public void CanCheckpointRestore()
     {
-        var readable = R("wo") + (R("of ") + (R("say") + R("s ") + R("the")) + (R(" ") + R(" d"))) + R("og, sometimes");
+        var readable = R("wo") + (R("of ") + (R("say") + R("s ") + R("the")) + (R(" ") + R("d"))) + R("og sometimes");
         var reader = new ReadableReader(readable);
         
         Assert.That(reader.TryReadChars(c => c != ' ', out var r0), Is.True);
@@ -160,7 +160,7 @@ public class ReadableTests
         reader.ResetTo(c0);
         
         Assert.That(reader.TryReadChars(c => c != ' ', out var r8), Is.True);
-        Assert.That(r8.ReadAll(), Is.EqualTo("dog"));
+        Assert.That(r8.ReadAll(), Is.EqualTo("the"));
     }
     
     static Readable R(string s) => Readable.From(s);
