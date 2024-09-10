@@ -2,7 +2,7 @@ namespace Bomolochus.Text.Tests;
 
 public class TransactionalStack<T>(int initialBufferSize = 256)
 {
-    private readonly Transaction _root = new(null, 0, new T[initialBufferSize], 0);
+    private readonly Transaction _root = new(null, 0, 0, new T[initialBufferSize], 0);
 
     public void Push(T value)
         => _root.Push(value);
@@ -14,12 +14,9 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
         => _root.StartTransaction(pullSize, initialBufferSize);
 
 
-    public class Transaction(Transaction? upstream, int upstreamCursor, T[] buffer, int cursor)
+    public class Transaction(Transaction? upstream, int upstreamVersion, int fromCursor, T[] buffer, int cursor)
     {
-        private int _childCount = 0;
-        
-        //todo: check childCount is 0
-        //todo: stacked transactions suck data through
+        private int _version = 0;
         
         public void Push(T value)
         {
@@ -29,6 +26,7 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
             }
             
             buffer[cursor++] = value;
+            _version++;
         }
 
         public T Peek()
@@ -43,6 +41,7 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
                 }
             }
 
+            _version++;
             return buffer[cursor - 1];
         }
 
@@ -65,39 +64,76 @@ public class TransactionalStack<T>(int initialBufferSize = 256)
         {
             if (upstream != null)
             {
-                (upstream, upstreamCursor, cursor) = upstream.SuckData(upstreamCursor, buffer);
+                cursor = upstream.SuckData(upstreamVersion, fromCursor, buffer);
+                fromCursor -= cursor;
             }
         }
 
-        private (Transaction? Upstream, int UpstreamCursor, int Count) SuckData(int suckCursor, Span<T> sink)
+        private int SuckData(int expectedVersion, int from, Span<T> sink)
         {
-            if (suckCursor <= 0)
+            if (expectedVersion != _version)
+            {
+                throw new InvalidOperationException();
+            }
+            
+            var limit = cursor + from;
+
+            if (limit <= 0)
             {
                 if (upstream != null)
                 {
-                    return upstream.SuckData(upstreamCursor, sink);
+                    return upstream.SuckData(upstreamVersion, limit, sink);
                 }
-                
-                return (null, 0, 0);
+
+                return 0;
             }
             
-            var c = Math.Min(suckCursor, buffer.Length >> 1);
-            var from = suckCursor - c;
+            var c = Math.Min(limit, sink.Length >> 1);
             
-            buffer[from..suckCursor].CopyTo(sink);
+            buffer[(limit - c)..limit].CopyTo(sink);
+            
+            return c;
+        }
 
-            return (this, from, c);
+        private void Update(int expectedVersion, int from, T[] srcBuffer, int srcLen)
+        {
+            if (expectedVersion != _version)
+            {
+                throw new InvalidOperationException();
+            }
+            
+            var start = from + cursor;
+            
+            if (start <= 0)
+            {
+                buffer = srcBuffer;
+                fromCursor += start;
+                cursor = srcLen;
+            }
+            else
+            {
+                cursor = start + srcLen;
+
+                while (cursor > buffer.Length)
+                {
+                    Array.Resize<T>(ref buffer, buffer.Length * 2);
+                }
+
+                srcBuffer.AsSpan(Range.EndAt(srcLen)).CopyTo(buffer.AsSpan(Range.StartAt(start)));
+            }
         }
         
         public void Commit()
         {
+            if (upstream == null)
+            {
+                throw new InvalidOperationException();
+            }
             
+            upstream.Update(upstreamVersion, fromCursor, buffer, cursor);
         }
 
-        public Transaction StartTransaction(int initialPull, int initialSize)
-        {
-            _childCount++;
-            return new Transaction(this, cursor, new T[initialSize], 0);
-        }
+        public Transaction StartTransaction(int initialPull, int initialSize) 
+            => new(this, _version, 0, new T[initialSize], 0);
     }
 }
