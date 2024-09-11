@@ -115,9 +115,9 @@ public class Tests
 
     [TestCase("**", "!Noise")]
     [TestCase("Bob = **", "!Is[Ref(Bob), !Noise]")]
-    [TestCase("(** = 3)", "(!Is[!Noise, Number(3)])")]
-    [TestCase("(Bob = **) = **", "!Is[(!Is[Ref(Bob), !Noise]), !Noise]")]
-    [TestCase("(Bob = **)", "(!Is[Ref(Bob), !Noise])")]
+    [TestCase("(** = 3)", "!(!Is[!Noise, Number(3)])")]
+    [TestCase("(Bob = **) = **", "!Is[!(!Is[Ref(Bob), !Noise]), !Noise]")]
+    [TestCase("(Bob = **)", "!(!Is[Ref(Bob), !Noise])")]
     public void ParseUncertainties(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);
@@ -133,7 +133,7 @@ public class Tests
               
               (Bob = 123)
               
-              """, 1, 9, "Number(123)")]
+              """, 1, 8, "Number(123)")]
     [TestCase("A = B = C", 0, 6, "Is[Ref(A), Ref(B), Ref(C)]")]
     public void FindsNodes(string text, int line, int col, string expected)
     {

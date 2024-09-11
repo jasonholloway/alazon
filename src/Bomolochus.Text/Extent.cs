@@ -104,8 +104,6 @@ public abstract class Extent
             }
             else if (line == x.Lines)
             {
-                line -= x.Lines;
-                
                 if (col < x.Cols)
                 {
                     curr = l;
@@ -113,6 +111,7 @@ public abstract class Extent
                 else
                 {
                     curr = r;
+                    line -= x.Lines;
                     col -= x.Cols;
                 }
             }
