@@ -1,5 +1,4 @@
-﻿using System.Reflection.Metadata;
-using Bomolochus.Text;
+﻿using Bomolochus.Text;
 using NUnit.Framework;
 
 namespace Bomolochus.Example.Tests;
@@ -11,7 +10,7 @@ public class Tests
     [TestCase("123", "Number(123)")]
     [TestCase("Hello", "Ref(Hello)")]
     [TestCase("\"Hello\"", "String(Hello)")]
-    [TestCase("Age = 5", "Is[Ref(Age), Number(5)]")]
+    [TestCase("A = 5", "Is[Ref(A), Number(5)]")]
     [TestCase("Name = /^blah.*/", "Is[Ref(Name), Regex(^blah.*)]")]
     [TestCase("Cat = Dog = Ape", "Is[Ref(Cat), Ref(Dog), Ref(Ape)]")]
     [TestCase("A & B", "And[Ref(A), Ref(B)]")]
@@ -35,7 +34,7 @@ public class Tests
     [TestCase("A.B = 3", "Is[Prop(Ref(A), Ref(B)), Number(3)]")]
     [TestCase("", "NULL")]
     [TestCase("[1, 2]", "[Number(1), Number(2)]")]
-    [TestCase("[1, *** ]", "![Number(1), !Noise]")] //nb the necessity of the space to stop the closing bracket being absorbed into noise token
+    [TestCase("[1, ***]", "![Number(1), !Noise]")] //nb the necessity of the space to stop the closing bracket being absorbed into noise token
     [TestCase("[1, ]", "![Number(1), !?]")]
     [TestCase("[blah", "!Noise")]
     public void ParsesExpressions(string text, string expected)

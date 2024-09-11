@@ -132,7 +132,7 @@ public static class ExampleParser
         select new Node.Number(int.Parse(num.ReadAll()));
 
     static IParser<Node> ParseNoise =>
-        from noise in Match(c => c is not ' ' and not ')' and not '}') //todo: parse for noise repeatedly forwards
+        from noise in Match(c => c is not ' ' and not ')' and not '}' and not ']') //todo: parse for noise repeatedly forwards
         select new Node.Noise().WithError("Unrecognised symbol");
     
     

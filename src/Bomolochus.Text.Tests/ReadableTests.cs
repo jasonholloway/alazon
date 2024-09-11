@@ -29,7 +29,7 @@ public class ReadableTests
         reader.TryReadChars(c => true, out _);
         reader.Emit();
 
-        Assert.That(reader.AtEnd, Is.True);
+        Assert.That(reader.TryReadChar(out _), Is.False);
     }
     
     [Test]
@@ -59,8 +59,6 @@ public class ReadableTests
         Assert.That(c4, Is.EqualTo('d'));
         
         Assert.That(reader.TryReadChar(out _), Is.False);
-
-        Assert.That(reader.AtEnd, Is.True);
     }
     
     [Test]
@@ -153,6 +151,23 @@ public class ReadableTests
         //and now continue on upstream...
         Assert.That(reader0.TryReadChars(c => c != ' ', out var r8), Is.True);
         Assert.That(r8.ReadAll(), Is.EqualTo("the"));
+    }
+    
+    [Test]
+    public void SplitsBigBuffer()
+    {
+        var splitter0 = TextSplitter.Create("Bow wow wow woof woof woof");
+        
+        Assert.That(splitter0.TryReadChars(c => c is not ' ', out _), Is.True);
+        Assert.That(splitter0.Split().Readable.ReadAll(), Is.EqualTo("Bow"));
+
+        var splitter1 = splitter0.StartTransaction();
+        Assert.That(splitter1.TryReadChars(c => c is ' ', out _), Is.True);
+        Assert.That(splitter1.Split().Readable.ReadAll(), Is.EqualTo(" "));
+        
+        var splitter2 = splitter1.Commit();
+        Assert.That(splitter2.TryReadChars(c => c is not ' ', out _), Is.True);
+        Assert.That(splitter2.Split().Readable.ReadAll(), Is.EqualTo("wow"));
     }
     
     static Readable R(string s) => Readable.From(s);

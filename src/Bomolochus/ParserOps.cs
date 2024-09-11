@@ -107,9 +107,19 @@ public static class ParserOps
     public static IParser<Readable> MatchDigits()
         => Match(c => c is >= '0' and <= '9');
     
-    public static IParser<Readable> Match(char @char)
-        => Match(c => c == @char);
-    
+    public static IParser<Readable> Match(char @char) 
+        => Parser.Create<Readable>(x =>
+        {
+            if (x.Text.TryReadChar(@char, out var claimed))
+            {
+                return new Result<Readable>(
+                    x, 
+                    Parsing.From(claimed, x.Text.Split(), Addenda.Empty)
+                );
+            }
+
+            return null;
+        });
 
     public static IParser<Readable> Match(Predicate<char> predicate) 
         => Parser.Create<Readable>(x =>

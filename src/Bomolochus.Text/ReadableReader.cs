@@ -69,22 +69,6 @@ public class ReadableReader
         _staged = Readable.Empty;
     }
 
-    public bool AtEnd {
-        get
-        {
-            while (TryPop(out var buffer))
-            {
-                if (!buffer.Span.IsEmpty)
-                {
-                    Push(buffer);
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }
-
     public TAc Visit<TAc>(TAc seed, Visitor<TAc> visitor)
     {
         var ac = seed;
@@ -139,6 +123,32 @@ public class ReadableReader
         }
         
         buffer = default!;
+        return false;
+    }
+
+    public bool TryReadChar(char @char, out Readable claimed)
+    {
+        while (TryPop(out var buff))
+        {
+            var span = buff.Span;
+
+            if (span.Length > 0)
+            {
+                if (span[0] == @char 
+                    && buff.TrySplit(1, out var split))
+                {
+                    claimed = split.Left;
+                    _staged += split.Left;
+                    Push(split.Right);
+                    return true;
+                }
+                
+                Push(buff);
+                break;
+            }
+        }
+        
+        claimed = Readable.Empty;
         return false;
     }
 

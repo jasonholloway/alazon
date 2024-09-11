@@ -25,8 +25,9 @@ public class TextSplitter
 
     public void Reset()
         => _reader.Reset();
-
-    public bool AtEnd => _reader.AtEnd;
+    
+    public bool TryReadChar(char @char, out Readable claimed)
+        => _reader.TryReadChar(@char, out claimed);
 
     public bool TryReadChar(out char @char)
         => _reader.TryReadChar(out @char);
