@@ -2,7 +2,7 @@ namespace Bomolochus.Text;
 
 public abstract record Readable(TextVec Size)
 {
-    public ReadableReader GetReader() => new(this);
+    public ReadableReader GetReader() => ReadableReader.Create(this);
     public string ReadAll() => GetReader().ReadAll();
     
     public static readonly Readable Empty = new ReadableEmpty();

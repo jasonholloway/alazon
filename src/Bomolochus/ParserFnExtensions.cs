@@ -28,7 +28,7 @@ public static class ParserFnExtensions
         {
             var upstreams = ImmutableArray<Parsing>.Empty;
             
-            if (Take<Token.Space>().Run(x) is { Context: var x02, Parsing: var p02 })
+            if (MatchSpace().Run(x) is { Context: var x02, Parsing: var p02 })
             {
                 if (p02 is not null)
                 {
@@ -49,7 +49,7 @@ public static class ParserFnExtensions
                 var pv1 = p1 is { Val: var v1 } ? v1 : default!;
                 var fn1 = map(pv1);
                 
-                if (Take<Token.Space>().Run(x1) is { Context: var x12, Parsing: var p12 })
+                if (MatchSpace().Run(x1) is { Context: var x12, Parsing: var p12 })
                 {
                     if (p12 is not null)
                     {

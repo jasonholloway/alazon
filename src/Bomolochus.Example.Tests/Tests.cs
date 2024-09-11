@@ -37,6 +37,7 @@ public class Tests
     [TestCase("[1, 2]", "[Number(1), Number(2)]")]
     [TestCase("[1, *** ]", "![Number(1), !Noise]")] //nb the necessity of the space to stop the closing bracket being absorbed into noise token
     [TestCase("[1, ]", "![Number(1), !?]")]
+    [TestCase("[blah", "!Noise")]
     public void ParsesExpressions(string text, string expected)
     {
         var tree = ExampleParser.ParseExpression.Run(text);

@@ -1,11 +1,10 @@
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities.Serialization;
 using NUnit.Framework;
 
 namespace Bomolochus.Text.Tests;
 
 public class TransactionalStackTests
 {
-    private TransactionalStack.Transaction<int> _stack;
+    private TransactionalStack<int> _stack;
     
     [SetUp]
     public void Setup()
@@ -52,7 +51,7 @@ public class TransactionalStackTests
     }
     
     [Test]
-    public void PopsThroughParent()
+    public void PopsThroughParents()
     {
         var t0 = _stack.StartTransaction(0, 4);
         t0.Push(1);
@@ -87,6 +86,29 @@ public class TransactionalStackTests
         Assert.That(t2.Peek(), Is.EqualTo(1));
         Assert.That(t2.Pop(), Is.EqualTo(1));
         Assert.Throws<InvalidOperationException>(() => t2.Peek());
+    }
+    
+    [Test]
+    public void PushPopPeek_FromParents2()
+    {
+        var t0 = _stack;
+        t0.Push(1);
+        t0.Push(2);
+
+        var t1 = t0.StartTransaction(0, 4);
+        t1.Pop();
+        t1.Pop();
+        t1.Push(3);
+
+        var t2 = t1.StartTransaction(0, 4);
+        t2.Pop();
+        t2.Push(4);
+        
+        var t3 = t2.StartTransaction(0, 4);
+        t3.Push(5);
+
+        Assert.That(t3.Pop(), Is.EqualTo(5));
+        Assert.That(t3.Pop(), Is.EqualTo(4));
     }
 
     [Test]

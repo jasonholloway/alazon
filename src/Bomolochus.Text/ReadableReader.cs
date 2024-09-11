@@ -13,17 +13,27 @@ namespace Bomolochus.Text;
 /// </summary>
 public class ReadableReader
 {
-    private TransactionalStack.Transaction<(State State, Readable Readable)> _stack;
-    private readonly Stack<Checkpointed> _checkpointed = [];
-    private Readable _staged = Readable.Empty;
-
     public enum State { ReadLeft, ReadRight }
-    public record Checkpointed(Readable Staged, TransactionalStack.Transaction<(State, Readable)> Stack);
 
-    public ReadableReader(Readable readable)
+    private ReadableReader? _parent;
+    private TransactionalStack<(State State, Readable Readable)> _stack;
+    private Readable _staged;
+    
+    // private readonly Stack<Checkpointed> _checkpointed = [];
+    // public record Checkpointed(Readable Staged, TransactionalStack<(State, Readable)> Stack);
+
+    public static ReadableReader Create(Readable readable)
     {
-        _stack = TransactionalStack.Create<(State, Readable)>(32);
-        _stack.Push((State.ReadLeft, readable));
+        var stack = TransactionalStack.Create<(State, Readable)>(16);
+        stack.Push((State.ReadLeft, readable));
+        return new ReadableReader(null, stack, Readable.Empty);
+    }
+    
+    private ReadableReader(ReadableReader? parent, TransactionalStack<(State, Readable)> stack, Readable staged)
+    {
+        _parent = parent;
+        _stack = stack;
+        _staged = staged;
     }
 
     public Readable Emit()
@@ -32,6 +42,26 @@ public class ReadableReader
         _staged = Readable.Empty;
         return staged;
     }
+
+
+
+    public ReadableReader StartTransaction() 
+        => new(this, _stack.StartTransaction(0, 16), _staged);
+    
+    public ReadableReader Commit()
+    {
+        if (_parent != null)
+        {
+            _parent._staged = _staged;
+            _parent._stack = _stack.Commit();
+            return _parent;
+        }
+
+        return this;
+    }
+    
+    
+    
 
     public void Reset()
     {
@@ -161,22 +191,22 @@ public class ReadableReader
     public string ReadAll()
         => Visit(new StringBuilder(), (sb, span) => sb.Append(span)).ToString();
 
-    public Checkpointed Checkpoint()
-    {
-        var s = new Checkpointed(_staged, _stack);
-        _checkpointed.Push(s);
-        _stack = _stack.StartTransaction(16, 32);
-        return s;
-    }
-
-    public void ResetTo(Checkpointed c0)
-    {
-        Start:
-        
-        var s = _checkpointed.Pop();
-        if(s != c0) goto Start;
-        
-        _stack = s.Stack;
-        _staged = s.Staged;
-    }
+    // public Checkpointed Checkpoint()
+    // {
+    //     var s = new Checkpointed(_staged, _stack);
+    //     _checkpointed.Push(s);
+    //     _stack = _stack.StartTransaction(16, 32);
+    //     return s;
+    // }
+    //
+    // public void ResetTo(Checkpointed c0)
+    // {
+    //     Start:
+    //     
+    //     var s = _checkpointed.Pop();
+    //     if(s != c0) goto Start;
+    //     
+    //     _stack = s.Stack;
+    //     _staged = s.Staged;
+    // }
 }

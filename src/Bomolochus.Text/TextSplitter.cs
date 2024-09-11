@@ -1,10 +1,21 @@
 namespace Bomolochus.Text;
 
-public class TextSplitter(Readable readable)
+public class TextSplitter
 {
-    private readonly ReadableReader _reader = new(readable);
-
+    private TextSplitter? _parent;
+    private ReadableReader _reader;
     private Split? _lastSplit;
+
+    public static TextSplitter Create(Readable readable)
+        => new(null, ReadableReader.Create(readable), null);
+
+    
+    private TextSplitter(TextSplitter? parent, ReadableReader reader, Split? lastSplit)
+    {
+        _parent = parent;
+        _reader = reader;
+        _lastSplit = lastSplit;
+    }
 
     public Split Split()
     {
@@ -27,24 +38,19 @@ public class TextSplitter(Readable readable)
         => _reader.ReadAll();
 
 
-    private readonly Stack<Checkpointed> _checkpoints = [];
-    public record Checkpointed(ReadableReader.Checkpointed ReaderCheckpoint, Split? LastSplit);
 
-    public Checkpointed Checkpoint()
+    public TextSplitter StartTransaction()
+        => new(this, _reader.StartTransaction(), _lastSplit);
+
+    public TextSplitter Commit()
     {
-        var c = new Checkpointed(_reader.Checkpoint(), _lastSplit);
-        _checkpoints.Push(c);
-        return c;
-    }
+        if (_parent != null)
+        {
+            _parent._reader = _reader.Commit();
+            _parent._lastSplit = _lastSplit;
+            return _parent;
+        }
 
-    public void RestoreTo(Checkpointed c)
-    {
-        Start:
-
-        var popped = _checkpoints.Pop();
-        if (popped != c) goto Start;
-        
-        _reader.ResetTo(popped.ReaderCheckpoint);
-        _lastSplit = popped.LastSplit;
+        return this;
     }
 };

@@ -1,44 +1,10 @@
 using System.Collections.Immutable;
+using Bomolochus.Text;
 
 namespace Bomolochus;
 
 public static class ParserOps 
 {
-    // public static IParser<N> Barrier<N>(int precedence, IParser<N> inner) =>
-    //     Parser.Create(x =>
-    //     {
-    //         if (x.Precedence >= precedence
-    //             && inner.Run(x with { Precedence = precedence }) is Result<N> r) //slightly iffy matching against concrete invariant type here
-    //         {
-    //             return r with
-    //             {
-    //                 Context = r.Context with
-    //                 {
-    //                     Precedence = x.Precedence
-    //                 }
-    //             };
-    //         }
-    //
-    //         return null;
-    //     });
-    //
-    // public static IParser<N> Isolate<N>(IParser<N> inner) =>
-    //     Parser.Create(x =>
-    //     {
-    //         if (inner.Run(x with { Precedence = 100 }) is Result<N> r) //slightly iffy matching against concrete invariant type here
-    //         {
-    //             return r with
-    //             {
-    //                 Context = r.Context with
-    //                 {
-    //                     Precedence = x.Precedence
-    //                 }
-    //             };
-    //         }
-    //
-    //         return null;
-    //     });
-
     public static IParser<N> Optional<N>(IParser<N> inner) => 
         Parser.Create(x => inner.Run(x) switch
         {
@@ -111,12 +77,12 @@ public static class ParserOps
             
             foreach (var fn in fns)
             {
-                switch ((best, fn.Run(x)))
+                switch ((best, fn.Run(x.StartTransaction())))
                 {
                     case (_, null): continue;
                     
                     case (_, { Parsing.Addenda.Certainty: 1 } p):
-                        return p; 
+                        return p.Select(t => (t.Context.Commit(), t.Parsing)); 
                     
                     case (null, {} p):
                         best = p;
@@ -129,26 +95,37 @@ public static class ParserOps
                 }
             }
 
-            return best!;
+            return best?.Select(t => (t.Context.Commit(), t.Parsing))!;
         });
+
+    public static IParser<Readable> MatchSpace()
+        => Match(c => c is ' ' or '\t' or '\r' or '\n' or '\f');
+
+    public static IParser<Readable> MatchWord()
+        => Match(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z'));
     
-    public static IParser<TToken> Take<TToken>(Func<TToken, bool>? match = null)
-        where TToken : Token
-        => Parser.Create(x =>
+    public static IParser<Readable> MatchDigits()
+        => Match(c => c is >= '0' and <= '9');
+    
+    public static IParser<Readable> Match(char @char)
+        => Match(c => c == @char);
+    
+
+    public static IParser<Readable> Match(Predicate<char> predicate) 
+        => Parser.Create<Readable>(x =>
         {
-            if (!x.Tokens.IsEmpty
-                && x.Tokens.Peek() is { GenericToken: TToken token, Text: var text }
-                && (match is null || match(token)))
+            if (x.Text.TryReadChars(predicate, out var claimed))
             {
-                return new Result<TToken>(
-                    x with { Tokens = x.Tokens.Dequeue() },
-                    Parsing.From(token, text, Addenda.Empty)
+                return new Result<Readable>(
+                    x, 
+                    Parsing.From(claimed, x.Text.Split(), Addenda.Empty)
                 );
             }
 
             return null;
         });
     
+
     /* TODO
      * for Expect to be able to capture a slim Extent dynamically
      * we need DYNAMIC LEXING!
@@ -177,13 +154,30 @@ public static class ParserOps
             new Result<N>(x, Parsing.From(node, [], Addenda.Empty))
         );
 
-    public record Context(ImmutableQueue<Lexed> Tokens, int Precedence);
+    
+    
+    
+    public record Context(TextSplitter Text)
+    {
+        public Context StartTransaction()
+            => new(Text.StartTransaction());
+
+        public Context Commit()
+            => new(Text.Commit());
+    }
+    
+    
+    
+    
+    
     
     public interface IResult<out N>
     {
         Context Context { get; }
         Parsing<N>? Parsing { get; }
     }
+    
+    
 
     public record Result<N>(Context Context, Parsing<N>? Parsing) : IResult<N>;
 
@@ -196,23 +190,20 @@ public static class ParserOps
     class Parser<N>(Func<Context, IResult<N>?> fn) : Parser, IParser<N>
     {
         public IResult<N>? Run(Context x)
-        {
-            // while (!x.Tokens.IsEmpty
-            //        && x.Tokens.Peek() is Lexed<Token.Space> { Vector: var lexedVec })
-            // {
-            //     x = x with
-            //     {
-            //         Tokens = x.Tokens.Dequeue(),
-            //         Vector = x.Vector + lexedVec 
-            //     };
-            // }
-            //
-            return fn(x);
-        }
+            => fn(x);
     }
 
     public interface IParser<out N>
     {
         IResult<N>? Run(Context x);
+    }
+}
+
+public static class ParseResultExtensions 
+{
+    public static ParserOps.IResult<T2> Select<T, T2>(this ParserOps.IResult<T> result, Func<(ParserOps.Context Context, Parsing<T>? Parsing), (ParserOps.Context, Parsing<T2>?)> map)
+    {
+        var mapped = map((result.Context, result.Parsing));
+        return new ParserOps.Result<T2>(mapped.Item1, mapped.Item2);
     }
 }
