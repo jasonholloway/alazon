@@ -27,6 +27,8 @@ public static class ParserFnExtensions
         Parser.Create(x =>
         {
             var upstreams = ImmutableArray<Parsing>.Empty;
+
+            x = x.StartTransaction();
             
             if (MatchSpace().Run(x) is { Context: var x02, Parsing: var p02 })
             {
@@ -35,7 +37,6 @@ public static class ParserFnExtensions
                     upstreams = upstreams.Add(p02);
                 }
                 
-                //todo should parse in *many* tokens of space
                 x = x02;
             }
             
@@ -56,7 +57,6 @@ public static class ParserFnExtensions
                         upstreams = upstreams.Add(p12);
                     }
                     
-                    //todo should parse in *many* tokens of space
                     x1 = x12;
                 }
                 
@@ -72,7 +72,7 @@ public static class ParserFnExtensions
                     //todo parse in trailing spaces here
                     
                     return new Result<C>(
-                        x2, 
+                        x2.Commit(), 
                         (p1, p2) switch
                         {
                             ({} a, {} b) => Parsing.From(
