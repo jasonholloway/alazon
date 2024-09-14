@@ -6,17 +6,50 @@ using static ParserOps;
 
 public static class ExampleParser
 {
-    public static Parsed<N>? Run<N>(this IParser<N> fn, string text)
-        where N : Node
-    {
-        return fn.Run(
-            new Context(TextSplitter.Create(Readable.From(text)))
-        )?.Parsing?.Complete();
-    }
+    public static Parsed<N>? Run<N>(this IParser<N> parser, string text)
+        where N : Node 
+        => parser
+            .Run(new Context(TextSplitter.Create(text)))?
+            .Parsing?
+            .Complete();
 
     public static IParser<Node.Rules> ParseRules =>
-        from rules in Many(ParseRule)
+        from rules in ParseDelimitedList(ParseRule, Match(';'))
         select new Node.Rules(rules);
+    
+    // there's a difference between a half-parsed thing needing presentation to us
+    // and complete absence...
+    // but how do we distinguish? 
+    //
+    // above the Many will read in even an empty thing
+    // or rather - it will parse in even an Expectation
+    // An expectation should be there to fill in if we have other bits in place which commit us to a presence
+    // but a Many doesn't commit us - though it kind of does in some cases
+    // ie a bounded list, or an arg list between parentheses
+    // certainly require something each time
+    //
+    // this boundedness however
+    // if we have a stricter list, with designated separators and bounds
+    // then it's clearer that we do in fact expect something
+    //
+    // the opposite case is then also freed up:
+    // the boundless speculative list
+    // which will read forwards until it is uncertain
+    //
+    // however: do we ever want this?
+    // statements are to be separated by semicolons
+    // expressions by commas
+    // rules by newlines
+    // and then if we find something that's not a separator...
+    // then we know exactly what the problem is:
+    // we are missing a separator! 
+    // C# is like this
+    //
+    // EVERYTHING IS PARSED AS A LIST
+    // I like this principal
+    // we separate space with delimiters
+    // and then parse fluently within was bounded section
+    
 
     private static IParser<Node.Rule> ParseRule =>
         from expr in Optional(ParseExpression)
@@ -26,38 +59,23 @@ public static class ExampleParser
     public static IParser<Node> ParseExpression =>
         ParseDisjunction;
 
-    static IParser<Node> ParseDisjunction =>
-        from head in ParseConjunction
-        from tail in Optional(AtLeastOne(
-            from op in Match('|')
-            from next in ParseConjunction
-            select next
-        ))
-        select tail != null
-            ? new Node.Or([head, ..tail])
-            : head;
+    private static IParser<Node> ParseDisjunction =>
+        from els in ParseDelimitedList(ParseConjunction, Match('|'))
+        select els.Length > 1 
+            ? new Node.Or(els.ToArray()) 
+            : els.Single();
 
     static IParser<Node> ParseConjunction =>
-        from head in ParseEquality
-        from tail in Optional(AtLeastOne(
-            from op in Match('&')
-            from next in ParseEquality
-            select next
-        ))
-        select tail != null
-            ? new Node.And([head, ..tail])
-            : head;
+        from els in ParseDelimitedList(ParseEquality, Match('&'))
+        select els.Length > 1 
+            ? new Node.And(els.ToArray()) 
+            : els.Single();
 
     static IParser<Node> ParseEquality =>
-        from head in ParseProp
-        from tail in Optional(AtLeastOne(
-            from op in Match('=')
-            from next in OneOf(ParseProp, Expect("Expect something here mate"))
-            select next
-        ))
-        select tail != null 
-            ? new Node.Is([head, ..tail]) 
-            : head;
+        from els in ParseDelimitedList(ParseProp, Match('='))
+        select els.Length > 1 
+            ? new Node.Is(els.ToArray()) 
+            : els.Single();
 
     static IParser<Node> ParseProp =>
         Expand(ParseTerminal,
@@ -77,32 +95,28 @@ public static class ExampleParser
             );
 
     public static IParser<Node.StatementBlock> ParseStatementBlock =>
-        from open in Match('{')
-        from head in Optional(ParseExpression)
-        from rest in Many(
-            from sep in Match(';')
-            from next in ParseExpression
-            select next
+        from statements in ParseEnclosedList(
+            Match('{'),
+            ParseExpression,
+            Match(';'),
+            Match('}')
         )
-        from close in Match('}')
-        select new Node.StatementBlock(head == null ? [] : [head, ..rest]);
+        select new Node.StatementBlock(statements);
 
     static IParser<Node> ParseExpressionBlock =>
         from open in Match('(')
         from exp in ParseExpression
         from close in Match(')')
         select new Node.ExpressionBlock(exp);
-    
-    static IParser<Node> ParseList =>
-        from open in Match('[')
-        from head in ParseExpression
-        from rest in Many(
-            from comma in Match(',')
-            from next in OneOf(ParseExpression, Expect("BLAH"))
-            select next
-            )
-        from close in Match(']')
-        select new Node.List([head, ..rest]);
+
+    private static IParser<Node> ParseList =>
+        from els in ParseEnclosedList(
+            Match('['),
+            ParseExpression,
+            Match(','),
+            Match(']')
+        )
+        select new Node.List(els);
 
     static IParser<Node.Ref> ParseNameNode =>
         from name in MatchWord()

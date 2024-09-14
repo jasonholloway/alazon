@@ -13,7 +13,6 @@ public class ScratchPadTests
 
         var z = Reparse(updates, ExampleParser.ParseExpression);
         
-        
         Console.WriteLine("woof");
     }
 

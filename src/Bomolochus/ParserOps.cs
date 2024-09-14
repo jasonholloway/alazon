@@ -36,39 +36,61 @@ public static class ParserOps
             }
         });
 
-    public static IParser<ImmutableArray<Node>> AtLeastOne(IParser<Node> inner) =>
-        Many(inner, true);
-    
-    public static IParser<ImmutableArray<N>> Many<N>(IParser<N> inner, bool nullOnEmpty = false) 
-        where N : Node => 
-        Parser.Create(x =>
-        {
-            var acNodes = ImmutableArray<N>.Empty;
-            var acParsed = ImmutableArray<Parsing>.Empty;
-            var certainty = 1D;
-            
-            while (certainty >= 1 
-                   && inner.Run(x) is { Context: var x1, Parsing: { Val: {} val } parsing })
-            {
-                (acParsed, acNodes) = val switch
-                {
-                    Node.Syntax => (acParsed.Add(parsing), acNodes),
-                    _ => (acParsed.Add(parsing), acNodes.Add(val))
-                };
-                x = x1;
-                certainty *= parsing.Addenda.Certainty;
-            }
 
-            if (nullOnEmpty && acNodes.IsEmpty)
-            {
-                return null;
-            }
 
-            return new Result<ImmutableArray<N>>(
-                x, 
-                Parsing.From(acNodes, acParsed, Addenda.Empty)
-                );
-        });
+    public static IParser<ImmutableArray<N>> ParseEnclosedList<N>(IParser<object> parseOpen, IParser<N> parseElement,
+        IParser<object> parseDelimiter, IParser<object> parseClose)
+        where N : Node =>
+        from open in parseOpen
+        from elements in ParseDelimitedList(parseElement, parseDelimiter)
+        from close in parseClose
+        select elements;
+
+    public static IParser<ImmutableArray<N>> ParseDelimitedList<N>(IParser<N> parseElement,
+        IParser<object> parseDelimiter)
+        => Expand(
+            from first in parseElement
+            select ImmutableArray.Create(first), 
+            ac =>
+                from delimiter in parseDelimiter
+                from next in parseElement
+                select ac.Add(next)
+            );
+
+    // public static IParser<ImmutableArray<Node>> AtLeastOne(IParser<Node> inner) =>
+    //     Many(inner, true);
+    //
+    // [Obsolete("NEED DELIMITED LISTS INSTEAD")]
+    // public static IParser<ImmutableArray<N>> Many<N>(IParser<N> inner, bool nullOnEmpty = false) 
+    //     where N : Node => 
+    //     Parser.Create(x =>
+    //     {
+    //         var acNodes = ImmutableArray<N>.Empty;
+    //         var acParsed = ImmutableArray<Parsing>.Empty;
+    //         var certainty = 1D;
+    //         
+    //         while (certainty >= 1 
+    //                && inner.Run(x) is { Context: var x1, Parsing: { Val: {} val } parsing })
+    //         {
+    //             (acParsed, acNodes) = val switch
+    //             {
+    //                 Node.Syntax => (acParsed.Add(parsing), acNodes),
+    //                 _ => (acParsed.Add(parsing), acNodes.Add(val))
+    //             };
+    //             x = x1;
+    //             certainty *= parsing.Addenda.Certainty;
+    //         }
+    //
+    //         if (nullOnEmpty && acNodes.IsEmpty)
+    //         {
+    //             return null;
+    //         }
+    //
+    //         return new Result<ImmutableArray<N>>(
+    //             x, 
+    //             Parsing.From(acNodes, acParsed, Addenda.Empty)
+    //             );
+    //     });
 
     public static IParser<Node> OneOf(params IParser<Node>[] fns)
         => Parser.Create(x =>
@@ -156,7 +178,7 @@ public static class ParserOps
      * so there we have it yes
      */
         
-    public static IParser<Node.Expect> Expect(string expectation)
+    public static IParser<Node> Expect(string expectation)
         => Return(new Node.Expect()).WithError(expectation);
 
     public static IParser<N> Return<N>(N node) => 
