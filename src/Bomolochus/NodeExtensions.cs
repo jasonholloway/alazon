@@ -11,7 +11,7 @@ public static class NodeExtensions
         return node;
     }
 
-    public static IParser<N> WithError<N>(this IParser<N> fn, string message)
+    public static Parser<N> WithError<N>(this IParser<N> fn, string message)
         where N : Node =>
         Parser.Create(x =>
         {

@@ -32,9 +32,9 @@ public class Tests
     [TestCase("***", "!Noise")]
     [TestCase("A = ", "!Is[Ref(A), !?]")]
     [TestCase("A.B = 3", "Is[Prop(Ref(A), Ref(B)), Number(3)]")]
-    [TestCase("", "NULL")]
+    [TestCase("", "!?")]
     [TestCase("[1, 2]", "[Number(1), Number(2)]")]
-    [TestCase("[1, ***]", "![Number(1), !Noise]")] //nb the necessity of the space to stop the closing bracket being absorbed into noise token
+    [TestCase("[1, ***]", "![Number(1), !Noise]")]
     [TestCase("[1, ]", "![Number(1), !?]")]
     [TestCase("[blah", "!Noise")]
     public void ParsesExpressions(string text, string expected)
@@ -45,8 +45,8 @@ public class Tests
         Assert.That(Print(doc), Is.EqualTo(PrepNodeString(expected)));
     }
     
-    [TestCase("Woof(1)", "[Call(Ref(Woof), Number(1))]")]
-    [TestCase("Woof(1); Meeow(2)", "[Call(Ref(Woof), Number(1)), Call(Ref(Meeow), Number(2))]")]
+    [TestCase("{ Woof(1) }", "{Call(Ref(Woof), Number(1))}")]
+    [TestCase("{ Woof(1); Meeow(2) }", "{Call(Ref(Woof), Number(1)); Call(Ref(Meeow), Number(2))}")]
     public void ParsesStatements(string text, string expected)
     {
         var tree = ExampleParser.ParseStatementBlock.Run(text);
@@ -56,17 +56,19 @@ public class Tests
     }
     
     [TestCase("A { B }", "{Rule(Ref(A), {Ref(B)})}")]
+    [TestCase("{ B }", "{Rule(NULL, {Ref(B)})}")]
     [TestCase("{ Emit(123) }", "[Rule(NULL, [Call(Ref(Emit), Number(123))])]")]
-    [TestCase("0 { Emit(123) }", "[Rule(Number(0), [Call(Ref(Emit), Number(123))])]")]
-    [TestCase("A = 1 { Emit(123) }", "[Rule(Is[Ref(A), Number(1)], [Call(Ref(Emit), Number(123))])]")]
+    [TestCase("0 { Emit(123) }", "{Rule(Number(0), {Call(Ref(Emit), Number(123))})}")]
+    [TestCase("A = 1 { Emit(123) }", "{Rule(Is[Ref(A), Number(1)], {Call(Ref(Emit), Number(123))})}")]
     [TestCase("{ Count += 1 }", "[Rule(NULL, [Incr(Ref(Count), Number(1))])]")]
     [TestCase(
         """
         A { 1 }
         B { 2 }
         """
-        , "[Rule(Ref(A), [Number(1)]), Rule(Ref(B), [Number(2)])]"
+        , "{Rule(Ref(A), {Number(1)}), Rule(Ref(B), {Number(2)})}"
         )]
+    [TestCase("A { 1 }; B { 2 }", "{Rule(Ref(A), {Number(1)}), Rule(Ref(B), {Number(2)})}")]
     public void ParsesRules(string text, string expected)
     {
         var tree = ExampleParser.ParseRules.Run(text);
@@ -102,6 +104,7 @@ public class Tests
         """, 
         "<1,1-1,2>Number(1)", Description = "space should be gutterised")]
     [TestCase(" 13  ", "<0,1-0,3>Number(13)")]
+    [TestCase("13  ", "<0,0-0,2>Number(13)")]
     [TestCase("(7)", "<0,0-0,3>(<0,1-0,2>Number(7))")]
     [TestCase("A = (1 & B)", "<0,0-0,11>Is[<0,0-0,1>Ref(A), <0,4-0,11>(<0,5-0,10>And[<0,5-0,6>Number(1), <0,9-0,10>Ref(B)])]")]
     [TestCase(" Z = 1 ", "<0,1-0,6>Is[<0,1-0,2>Ref(Z), <0,5-0,6>Number(1)]")]

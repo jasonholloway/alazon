@@ -3,17 +3,17 @@ using Bomolochus.Text;
 
 namespace Bomolochus;
 
-public static class ParserOps 
+public class ParserOps 
 {
-    public static IParser<N> Optional<N>(IParser<N> inner) => 
-        Parser.Create(x => inner.Run(x) switch
+    public static ParserExp<N> Optional<N>(IParser<N> inner) => 
+        new(x => inner.Run(x) switch
         {
             {} r => r,
             null => new Result<N>(x, null)
         });
 
-    public static IParser<N> Expand<N>(IParser<N> first, Func<N, IParser<N>> repeatedly) => 
-        Parser.Create<N>(x =>
+    public static Parser<N> Expand<N>(IParser<N> first, Func<N, IParser<N>> repeatedly) => 
+        new(x =>
         {
             if (first.Run(x) is not { Context: var x1, Parsing: { } p1 })
             {
@@ -36,9 +36,7 @@ public static class ParserOps
             }
         });
 
-
-
-    public static IParser<ImmutableArray<N>> ParseEnclosedList<N>(IParser<object> parseOpen, IParser<N> parseElement,
+    public static ParserExp<ImmutableArray<N>> ParseEnclosedList<N>(IParser<object> parseOpen, IParser<N> parseElement,
         IParser<object> parseDelimiter, IParser<object> parseClose)
         where N : Node =>
         from open in parseOpen
@@ -46,7 +44,7 @@ public static class ParserOps
         from close in parseClose
         select elements;
 
-    public static IParser<ImmutableArray<N>> ParseDelimitedList<N>(IParser<N> parseElement,
+    public static Parser<ImmutableArray<N>> ParseDelimitedList<N>(IParser<N> parseElement,
         IParser<object> parseDelimiter)
         => Expand(
             from first in parseElement
@@ -57,45 +55,10 @@ public static class ParserOps
                 select ac.Add(next)
             );
 
-    // public static IParser<ImmutableArray<Node>> AtLeastOne(IParser<Node> inner) =>
-    //     Many(inner, true);
-    //
-    // [Obsolete("NEED DELIMITED LISTS INSTEAD")]
-    // public static IParser<ImmutableArray<N>> Many<N>(IParser<N> inner, bool nullOnEmpty = false) 
-    //     where N : Node => 
-    //     Parser.Create(x =>
-    //     {
-    //         var acNodes = ImmutableArray<N>.Empty;
-    //         var acParsed = ImmutableArray<Parsing>.Empty;
-    //         var certainty = 1D;
-    //         
-    //         while (certainty >= 1 
-    //                && inner.Run(x) is { Context: var x1, Parsing: { Val: {} val } parsing })
-    //         {
-    //             (acParsed, acNodes) = val switch
-    //             {
-    //                 Node.Syntax => (acParsed.Add(parsing), acNodes),
-    //                 _ => (acParsed.Add(parsing), acNodes.Add(val))
-    //             };
-    //             x = x1;
-    //             certainty *= parsing.Addenda.Certainty;
-    //         }
-    //
-    //         if (nullOnEmpty && acNodes.IsEmpty)
-    //         {
-    //             return null;
-    //         }
-    //
-    //         return new Result<ImmutableArray<N>>(
-    //             x, 
-    //             Parsing.From(acNodes, acParsed, Addenda.Empty)
-    //             );
-    //     });
-
-    public static IParser<Node> OneOf(params IParser<Node>[] fns)
-        => Parser.Create(x =>
+    public static ParserExp<T> OneOf<T>(params IParser<T>[] fns)
+        => new(x =>
         {
-            IResult<Node>? best = null;
+            IResult<T>? best = null;
             
             foreach (var fn in fns)
             {
@@ -120,16 +83,13 @@ public static class ParserOps
             return best?.Select(t => (t.Context.Commit(), t.Parsing))!;
         });
 
-    public static IParser<Readable> MatchSpace()
-        => Match(c => c is ' ' or '\t' or '\r' or '\n' or '\f');
-
-    public static IParser<Readable> MatchWord()
+    public static Parser<Readable> MatchWord()
         => Match(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z'));
     
-    public static IParser<Readable> MatchDigits()
+    public static Parser<Readable> MatchDigits()
         => Match(c => c is >= '0' and <= '9');
     
-    public static IParser<Readable> Match(char @char) 
+    public static Parser<Readable> Match(char @char) 
         => Parser.Create<Readable>(x =>
         {
             if (x.Text.TryReadChar(@char, out var claimed))
@@ -143,7 +103,7 @@ public static class ParserOps
             return null;
         });
 
-    public static IParser<Readable> Match(Predicate<char> predicate) 
+    public static Parser<Readable> Match(Predicate<char> predicate) 
         => Parser.Create<Readable>(x =>
         {
             if (x.Text.TryReadChars(predicate, out var claimed))
@@ -157,45 +117,25 @@ public static class ParserOps
             return null;
         });
     
+    public static Parser<Readable> Nop()
+        => Parser.Create<Readable>(x => new Result<Readable>(x, Parsing.From(Readable.Empty, x.Text.Split(), Addenda.Empty)));
 
-    /* TODO
-     * for Expect to be able to capture a slim Extent dynamically
-     * we need DYNAMIC LEXING!
-     * no way round this
-     * as an expectation can't be known till we parse
-     *
-     * but - parsing requires jump-backability
-     * and our Extents are currently mutable
-     * No! we just need Splits
-     * they become 'proper' immovable mutables only on sealing, I believe
-     *
-     * there we go then...
-     * DYNAMIC LEXING IS NEEDED!
-     * create SPLITS as we go
-     *
-     * which will allow us top flexibility in articulating Extents
-     * which is unavoidable for the Expect function
-     * so there we have it yes
-     */
-        
-    public static IParser<Node> Expect(string expectation)
-        => Return(new Node.Expect()).WithError(expectation);
+    public static Parser<Node> Expect(string expectation)
+        => Return<Node>(new Node.Expect()).WithError(expectation);
 
-    public static IParser<N> Return<N>(N node) => 
+    public static Parser<N> Return<N>(N node) => 
         Parser.Create(x => 
             new Result<N>(x, Parsing.From(node, [], Addenda.Empty))
         );
-
     
     
-    
-    public record Context(TextSplitter Text)
+    public record Context(TextSplitter Text, ImmutableHashSet<char> SpaceChars, bool SpaceParsable = true)
     {
         public Context StartTransaction()
-            => new(Text.StartTransaction());
+            => this with { Text = Text.StartTransaction() };
 
         public Context Commit()
-            => new(Text.Commit());
+            => this with { Text = Text.Commit() };
     }
     
     
@@ -215,11 +155,54 @@ public static class ParserOps
 
     public abstract class Parser
     {
-        public static IParser<N> Create<N>(Func<Context, IResult<N>?> fn) 
-            => new Parser<N>(fn);
+        public static Parser<N> Create<N>(Func<Context, IResult<N>?> fn) 
+            => new(fn);
+
+        public static Parser<N> Create<N>(Func<IParser<N>> fn)
+            => new(fn);
     }
 
-    class Parser<N>(Func<Context, IResult<N>?> fn) : Parser, IParser<N>
+    public class Parser<N> : Parser, IParser<N>
+    {
+        private readonly Func<Context, IResult<N>?> _fn;
+        
+        public Parser(Func<Context, IResult<N>?> fn)
+        {
+            _fn = fn;
+        }
+
+        public Parser(Func<IParser<N>> fn)
+        {
+            _fn = x => fn().Run(x);
+        }
+
+        public IResult<N>? Run(Context x)
+        {
+            if (x.SpaceParsable 
+                && x.Text.TryReadChars(x.SpaceChars.Contains, out _))
+            {
+                var space = x.Text.Split();
+
+                if (_fn(x with { SpaceParsable = false }) is { } result)
+                {
+                    return result.Select(t => (
+                        t.Context with { SpaceParsable = true },
+                        Parsing.From(
+                            t.Parsing!.Val, 
+                            [new ParsingText<Readable>(space.Readable, space, true), t.Parsing]
+                            )
+                        ));
+                }
+            }
+
+            return _fn(x)?.Select(t => (
+                t.Context with { SpaceParsable = true }, 
+                t.Parsing)
+            );
+        }
+    }
+    
+    public record ParserExp<N>(Func<Context, IResult<N>?> fn) : IParser<N>
     {
         public IResult<N>? Run(Context x)
             => fn(x);

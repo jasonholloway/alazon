@@ -6,10 +6,10 @@ using static ParserOps;
 
 public static class ParserFnExtensions
 {
-    public static IParser<B> Select<A, B>(
+    public static ParserExp<B> Select<A, B>(
         this IParser<A> fn,
         Func<A, B> map) =>
-        Parser.Create(x => fn.Run(x) switch
+        new(x => fn.Run(x) switch
         {
             { Context: var x2, Parsing: var parsed  } =>
                 new Result<B>(x2, parsed switch
@@ -20,25 +20,15 @@ public static class ParserFnExtensions
             null => null
         });
     
-    public static IParser<C> SelectMany<A, B, C>(
+    public static ParserExp<C> SelectMany<A, B, C>(
         this IParser<A> fn0, 
         Func<A, IParser<B>> map,
         Func<A, B, C> join) => 
-        Parser.Create(x =>
+        new(x =>
         {
             var upstreams = ImmutableArray<Parsing>.Empty;
 
             x = x.StartTransaction();
-            
-            if (MatchSpace().Run(x) is { Context: var x02, Parsing: var p02 })
-            {
-                if (p02 is not null)
-                {
-                    upstreams = upstreams.Add(p02);
-                }
-                
-                x = x02;
-            }
             
             if (fn0.Run(x) is { Context: var x1, Parsing: var p1 }) //todo parsed might be null!
             {
@@ -49,16 +39,6 @@ public static class ParserFnExtensions
                 
                 var pv1 = p1 is { Val: var v1 } ? v1 : default!;
                 var fn1 = map(pv1);
-                
-                if (MatchSpace().Run(x1) is { Context: var x12, Parsing: var p12 })
-                {
-                    if (p12 is not null)
-                    {
-                        upstreams = upstreams.Add(p12);
-                    }
-                    
-                    x1 = x12;
-                }
                 
                 if (fn1.Run(x1) is { Context: var x2, Parsing: var p2 })
                 {

@@ -476,3 +476,178 @@ Though when extents do change, their readables need to be updated in an upward b
 
 
  
+
+* Multipass parsing
+We wanna occasionally parse forwards once to take in blocks of text
+that can then be further parsed into shape
+
+imagine a block of embedded Bash scripting
+or a brace-delimited block of language statements
+
+the more you parse ahead the less context you have for decision making, of course
+
+and the only real advantage to using this mechanism for language elements
+is a nice built-in curtailing of mistyped sections
+one misplaced comma isn't going to derail the entire lot
+ie there is value in it, even for this
+
+parsing ahead would realise a node
+then the question becomes, how to reduce this node in an idiomatic way?
+
+given one node, we want to engage new parsers
+(a parser could just be a Return of course)
+
+formally presentable as a like-for-like translation between nodes
+in S/R as a translation between sequences and equivalent new nodes
+(mechanically as a matched stack operation)
+
+no - more precisely we require mappings between matchable nodes and
+new parsers: each parser becomes a reducer of - what?
+
+in the simplest standard case, of a Readable
+but other nodes could be reduced?
+
+so each Parser is actually a Reducer of /things/
+
+and reductions of things can be strung together
+
+at the top level
+we have a base reduction in place over Readable
+if we have a readable, then this reduces/expands it to a more meaningful node
+like the registration of a handler, in fact
+
+how would changes propagate then?
+and how would this all be set up to work with linguistic expansions also?
+
+simply we'd start programming the reduce/expanders rather than the simple forward parsing
+with matching on type of node
+(potentially covering sequences also)
+
+but how would this work with propagations?
+a change to a frament would still reverberate up the parse tree
+and the topmost part of the parse tree is now the reduction engine
+
+recursive descent propagation would bubble up through
+in-place Parsers, formed into a tree. Rejected potential Parsers
+don't make it at all into this tree, and they only reappear if
+their parent node is reset given certain damage
+
+but above this, we have the matched reducers etc
+which arrange parsers in series to form their results
+closing over a combined upland of text/intermediate nodes
+
+so Parsers, on exceptions, yield up to their parents
+over their bound inputs
+
+if the input is itself a node
+the a change of this node
+will invalidate reparsings of the same
+
+damage to Readable would then invalidate the parsing of Readable->BlockNode,
+which would then retrigger the BlockNode->StatementNodes reduction
+
+in the case of Readables, damage is shaped, and effects only certain parsings
+ie although text is monoidal, its bindings are not merged in toto
+(therefore, bound text is not monoidal)
+but it is monoidal! as long as bindings are scoped by offset and range
+
+or is it more that Readables refer back into their own structure
+and that parsings do in fact bind to particular readables...
+behind the scenes these are in fact one big buffer (or a series of them)
+but within the parsing they are treated as their own things,
+which can be reduced, expanded etc.
+
+A readable is reduced to a node tree by our top-level reduction
+but this readable is extruded out into parts that can be bound to
+
+A BlockNode is reduced to a StatementsNode
+and we can bind to the upstream reduction
+as the upstream isn't just the node but also its reduction
+
+In recursive descent we don't bind to the overall input, but only to our accumulated part of it
+
+------
+
+damage propagation, how so?
+
+a preparsed block would have within it many statements
+and these statements would bind upmost to the Extents
+
+though the first parsing of the block would itself parse on Extent
+* Space
+all parsers to transparently ingest leading space
+according to the set of space chars
+
+but the problem here is that as we speculatively try alternate parsings
+we will repeatedly do the same space parsing
+it needs to be done once and shared
+
+which we achieve by absorbing space at the topmost level of parsing
+and setting a flag in the context to say whether space has been sufficiently absorbed already
+
+changing the space set resets this flag
+and a successful response also
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
