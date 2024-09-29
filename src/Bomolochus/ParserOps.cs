@@ -55,33 +55,42 @@ public class ParserOps
                 select ac.Add(next)
             );
 
-    public static ParserExp<T> OneOf<T>(params IParser<T>[] fns)
-        => new(x =>
-        {
-            IResult<T>? best = null;
-            
-            foreach (var fn in fns)
+    public static Parser<T> OneOf<T>(params IParser<T>[] fns)
+        => new(
+            spacing: new Spacing(
+                //parse space chars if they appear in _all_ below
+                fns.Aggregate(
+                    seed: default(IEnumerable<char>), 
+                    (ac, f) => ac != null ? ac.Intersect(f.Spacing.SpaceChars) : ac
+                    ) ?? [], 
+                //respect non-space chars is they appear in _any_ below
+                fns.SelectMany(f => f.Spacing.NonSpaceChars)),
+            parse: x =>
             {
-                switch ((best, fn.Run(x.StartTransaction())))
+                IResult<T>? best = null;
+                
+                foreach (var fn in fns)
                 {
-                    case (_, null): continue;
-                    
-                    case (_, { Parsing.Addenda.Certainty: 1 } p):
-                        return p.Select(t => (t.Context.Commit(), t.Parsing)); 
-                    
-                    case (null, {} p):
-                        best = p;
-                        break;
-                    
-                    case ({ Parsing.Addenda.Certainty: var bestCertainty }, { Parsing.Addenda.Certainty: var certainty } p) 
-                        when certainty > bestCertainty:
-                        best = p;
-                        break;
+                    switch ((best, fn.Run(x.StartTransaction())))
+                    {
+                        case (_, null): continue;
+                        
+                        case (_, { Parsing.Addenda.Certainty: 1 } p):
+                            return p.Select(t => (t.Context.Commit(), t.Parsing)); 
+                        
+                        case (null, {} p):
+                            best = p;
+                            break;
+                        
+                        case ({ Parsing.Addenda.Certainty: var bestCertainty }, { Parsing.Addenda.Certainty: var certainty } p) 
+                            when certainty > bestCertainty:
+                            best = p;
+                            break;
+                    }
                 }
-            }
 
-            return best?.Select(t => (t.Context.Commit(), t.Parsing))!;
-        });
+                return best?.Select(t => (t.Context.Commit(), t.Parsing))!;
+            });
 
     public static Parser<Readable> MatchWord()
         => Match(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z'));
@@ -91,7 +100,6 @@ public class ParserOps
     
     public static Parser<Readable> Match(char @char) 
         => new(
-            modifySpaceChars: s => s.Remove(@char),
             parse: x =>
             {
                 if (x.Text.TryReadChar(@char, out var claimed))
@@ -103,7 +111,9 @@ public class ParserOps
                 }
 
                 return null;
-            });
+            },
+            spacing: new Spacing([], [@char])
+            );
 
     public static Parser<Readable> Match(Predicate<char> predicate) 
         => Parser.Create<Readable>(x =>
@@ -166,42 +176,43 @@ public class ParserOps
 
     public class Parser<N> : Parser, IParser<N>
     {
-        private readonly Func<Context, IResult<N>?> _parse;
-        private readonly Func<ImmutableHashSet<char>, ImmutableHashSet<char>>? _modifySpaceChars;
-        
-        public Parser(
-            Func<Context, IResult<N>?> parse, 
-            Func<ImmutableHashSet<char>, ImmutableHashSet<char>>? modifySpaceChars = null
-            )
+        private readonly Lazy<(Func<Context, IResult<N>?> Fn, Spacing Spacing)> _lz;
+
+        public Spacing Spacing => _lz.Value.Spacing;
+        protected Func<Context, IResult<N>?> Parse => _lz.Value.Fn;
+
+        public Parser(Func<Context, IResult<N>?> parse, Spacing? spacing = null)
         {
-            _parse = parse;
-            _modifySpaceChars = modifySpaceChars;
+            _lz = new Lazy<(Func<Context, IResult<N>?>, Spacing)>(() => 
+                (parse, spacing ?? Spacing.Empty)
+            );
         }
 
         public Parser(Func<IParser<N>> parse)
         {
-            _parse = x => parse().Run(x);
+            _lz = new Lazy<(Func<Context, IResult<N>?>, Spacing)>(() =>
+            {
+                var fn = parse();
+                return (x => fn.Run(x), fn.Spacing);
+            });
         }
 
         public IResult<N>? Run(Context x0)
         {
             var x = x0;
             
-            if (_modifySpaceChars != null)
+            x = x with
             {
-                x = x with
-                {
-                    SpaceChars = _modifySpaceChars(x.SpaceChars),
-                    SpaceParsable = true
-                };
-            }
+                SpaceChars = x.SpaceChars.Union(Spacing.SpaceChars).Except(Spacing.NonSpaceChars),
+                SpaceParsable = true //todo should be set ol
+            };
                 
             if (x.SpaceParsable 
                 && x.Text.TryReadChars(x.SpaceChars.Contains, out _))
             {
                 var space = x.Text.Split();
 
-                if (_parse(x with { SpaceParsable = false }) is { } result)
+                if (Parse(x with { SpaceParsable = false }) is { } result)
                 {
                     return result.Select(t => (
                         t.Context with { SpaceParsable = true, SpaceChars = x0.SpaceChars },
@@ -213,23 +224,31 @@ public class ParserOps
                 }
             }
 
-            return _parse(x)?.Select(t => (
+            return Parse(x)?.Select(t => (
                 t.Context with { SpaceParsable = true, SpaceChars = x0.SpaceChars }, 
                 t.Parsing)
             );
         }
     }
     
-    public record ParserExp<N>(Func<Context, IResult<N>?> fn) : IParser<N>
+    public record ParserExp<N>(Func<Context, IResult<N>?> parse, Spacing? spacing = null) : IParser<N>
     {
         public IResult<N>? Run(Context x)
-            => fn(x);
+            => parse(x);
+
+        public Spacing Spacing => spacing ?? Spacing.Empty;
     }
 
     public interface IParser<out N>
     {
         IResult<N>? Run(Context x);
+        Spacing Spacing { get; }
     }
+}
+
+public record Spacing(IEnumerable<char> SpaceChars, IEnumerable<char> NonSpaceChars)
+{
+    public static readonly Spacing Empty = new([], []);
 }
 
 public static class ParseResultExtensions 

@@ -587,6 +587,35 @@ and setting a flag in the context to say whether space has been sufficiently abs
 
 changing the space set resets this flag
 and a successful response also
+* Expectations and Options
+How do they mix? If an expression is optional, then in particular parsing NOTHING is an option
+but if there is something, and it is partially correct, then that should be our choice
+if there is something, and it doesn't fit the optional parse
+we should always try to parse it as the consecutive parsing
+however this produces a OneOf disjunction:
+
+the immediate text contains our optional element
+OR the immediate text contains our consecutive element
+
+these are two eventualities to assess and to order
+** How it is now
+we currently try to parse the optional
+and if this is not fully successful
+we are forced to capture this as an expectation
+and then follow up with the successor
+
+but it may be that the successor is very happy to absorb the immediate
+and that expectations from the optional should be completely skipped past
+
+OneOf gives us a mechanism for this
+
+
+
+
+
+
+
+
 
 
 

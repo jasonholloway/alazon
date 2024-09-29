@@ -4,21 +4,27 @@ namespace Bomolochus;
 
 using static ParserOps;
 
+//todo: spacing needs to bubble through select
+
+
 public static class ParserFnExtensions
 {
-    public static ParserExp<B> Select<A, B>(
+    public static Parser<B> Select<A, B>(
         this IParser<A> fn,
         Func<A, B> map) =>
-        new(x => fn.Run(x) switch
-        {
-            { Context: var x2, Parsing: var parsed  } =>
-                new Result<B>(x2, parsed switch
-                {
-                    { Val: var val } => Parsing.From(map(val), [parsed], parsed.Addenda),
-                    null => null
-                }),
-            null => null
-        });
+        new(
+            parse: x => fn.Run(x) switch
+            {
+                { Context: var x2, Parsing: var parsed  } =>
+                    new Result<B>(x2, parsed switch
+                    {
+                        { Val: var val } => Parsing.From(map(val), [parsed], parsed.Addenda),
+                        null => null
+                    }),
+                null => null
+            },
+            spacing: fn.Spacing
+        );
     
     public static ParserExp<C> SelectMany<A, B, C>(
         this IParser<A> fn0, 

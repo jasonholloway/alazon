@@ -4,6 +4,7 @@ using NUnit.Framework;
 namespace Bomolochus.Example.Tests;
 
 using static Printer;
+using static ParserOps;
 
 public class Tests
 {
@@ -44,6 +45,32 @@ public class Tests
         
         Assert.That(Print(doc), Is.EqualTo(PrepNodeString(expected)));
     }
+    
+    
+    
+    //but to combine over sub-parsers with different space chars
+    //these sub-parsers need to advertise their space chars
+    //ie they can't just update the context via a delegate
+    //they need to advertise!
+
+    [TestCase("Z", "Number(1)")]
+    [TestCase("\n", "Number(1)")]
+    [TestCase(" ", "Number(1)")]
+    public void ParsesSpaces(string text, string expected)
+    {
+        var tree = new Parser<Node>(() =>
+            from c in OneOf(
+                Match('\n'),
+                Match('Z'),
+                Match(' '))
+            select new Node.Number(1)
+        ).Run(text);
+            
+        var doc = new ParsedDoc(Extent.Combine(tree?.Left, tree?.Centre, tree?.Right), tree);        
+        Assert.That(Print(doc), Is.EqualTo(PrepNodeString(expected)));    
+    }
+    
+    
     
     [TestCase("{ Woof(1) }", "{Call(Ref(Woof), Number(1))}")]
     [TestCase("{ Woof(1); Meeow(2) }", "{Call(Ref(Woof), Number(1)); Call(Ref(Meeow), Number(2))}")]

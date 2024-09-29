@@ -4,27 +4,46 @@ using static ParserOps;
 
 public static class ExampleParser
 {
-    /* a new line needs to be usable as a delimiter
-     * yet currently it automatically gets read as mere spacing
-     *
-     * when trying to match a particular char
-     * this positive char needs removing from the space set
-     * but also: this means that trailing space doesn't quite work
-     * as we need to know what the next parsing is first
-     *
-     * which would work if ParseEnd was a parser
-     * as this would then parse forwards through trailing stuff
+    /* TODO the current space-parsing does not cope with nested parsers with different space expectations
+     * ie ';' | '\n', since it is at the top level a OneOf
+     * will greedily consume '\n' before it delegates in to the speciaised matchers
+     * the space chars of child parsers should be take into account by their combinators
+     * ie OneOf should pre-read a lowest-common denominator list of spaces
+     * and allow sub-parsers to whittle down beyond that
      */
+    
+    /* Testing of the above:
+     * we need a case in which a OneOf covers different matchings
+     */
+
+
+
+    // static ExampleParser()
+    // {
+    //     Parser<Node> parseExpression;
+    //     
+    //     var parseWord = 
+    //         from word in Match(c => c is >= 'A' and <= 'z')
+    //         select new Node.String(word);
+    //
+    //     var parseNum =
+    //         from num in Match(c => c is >= '0' and <= '9')
+    //         select new Node.Number(int.Parse(num.ReadAll()));
+    //
+    //     var parseAnd =
+    //         from exps in ParseDelimitedList(parseExpression, Match('&'))
+    //         select new Node.And(exps.ToArray());
+    //
+    //     parseExpression = OneOf<Node>(parseAnd, parseWord, parseNum);
+    // }
+    
+    
     
     
     
     public static readonly Parser<Node.Rules> ParseRules = new(() =>
         from rules in ParseDelimitedList(ParseRule, OneOf(Match(';'), Match('\n')))
         select new Node.Rules(rules)
-    );
-    
-    public static readonly Parser<Node> ParseExpression = new(() => 
-        ParseDisjunction
     );
 
     static readonly Parser<Node> ParseDisjunction = new(() => 
@@ -34,10 +53,25 @@ public static class ExampleParser
             : els.Single()
     );
     
+    public static readonly Parser<Node> ParseExpression = new(() => 
+        ParseDisjunction
+    );
+    
+    // static readonly readonly Parser<Node.Rule> ParseRule = new(() => 
+    //     from expr in Optional(ParseExpression)
+    //     from block in OneOf(ParseStatementBlock, Expect("Expected statement block"))
+    //     select new Node.Rule(expr, block)
+    // );
+    
     static readonly Parser<Node.Rule> ParseRule = new(() => 
-        from expr in Optional(ParseExpression)
-        from block in OneOf(ParseStatementBlock, Expect("Expected statement block"))
-        select new Node.Rule(expr, block)
+        OneOf(
+            from expr in ParseExpression
+            from block in OneOf(ParseStatementBlock, Expect("Expected statement block"))
+            select new Node.Rule(expr, block),
+            
+            from block in OneOf(ParseStatementBlock, Expect("Expected statement block"))
+            select new Node.Rule(null, block)
+            )
     );
 
     static readonly Parser<Node> ParseConjunction = new(() =>
@@ -132,19 +166,19 @@ public static class ExampleParser
         select new Node.String(str)
     );
 
-    static Parser<Node.Regex> ParseRegex => new(() =>
+    static readonly Parser<Node.Regex> ParseRegex = new(() =>
         from open in Match('/')
         from pattern in Match(c => c != '/')
         from close in Match('/')
         select new Node.Regex(pattern)
     );
 
-    static Parser<Node.Number> ParseNumber => new(() =>
+    static readonly Parser<Node.Number> ParseNumber = new(() =>
         from num in MatchDigits()
         select new Node.Number(int.Parse(num.ReadAll()))
     );
 
-    private static Parser<Node.Noise> ParseNoise => new(() =>
+    private static readonly Parser<Node.Noise> ParseNoise = new(() =>
         from noise in Match(c => c is not ' ' and not ')' and not '}' and not ']' and not '{')
         select new Node.Noise().WithError("Unrecognised symbol")
     );
