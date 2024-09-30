@@ -27,7 +27,7 @@ public class ParserOps
             {
                 if (repeatedly(val).Run(x1) is not { Context: var x2, Parsing: { } p2 })
                 {
-                    return new Result<N>(x1, Parsing.From(val, acParsed, Addenda.Empty));
+                    return new Result<N>(x1, Parsing.From(val, acParsed, acParsed.Aggregate(Addenda.Empty, (ac, p) => ac + p.Addenda)));
                 }
                 
                 x1 = x2;
@@ -36,9 +36,12 @@ public class ParserOps
             }
         });
 
-    public static ParserExp<ImmutableArray<N>> ParseEnclosedList<N>(IParser<object> parseOpen, IParser<N> parseElement,
-        IParser<object> parseDelimiter, IParser<object> parseClose)
-        where N : Node =>
+    public static ParserExp<ImmutableArray<N>> ParseEnclosedList<N>(
+        IParser<object> parseOpen, 
+        IParser<N> parseElement,
+        IParser<object> parseDelimiter, 
+        IParser<object> parseClose
+        ) where N : Node =>
         from open in parseOpen
         from elements in ParseDelimitedList(parseElement, parseDelimiter)
         from close in parseClose
@@ -128,9 +131,6 @@ public class ParserOps
 
             return null;
         });
-    
-    public static Parser<Readable> Nop()
-        => Parser.Create<Readable>(x => new Result<Readable>(x, Parsing.From(Readable.Empty, x.Text.Split(), Addenda.Empty)));
 
     public static Parser<Node> Expect(string expectation)
         => Return<Node>(new Node.Expect()).WithError(expectation);

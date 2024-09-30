@@ -10,6 +10,8 @@ public static class NodeExtensions
         node.Add(new Addenda(0.5, [message]));
         return node;
     }
+    
+    //todo below needs to map including Spacing as well as modified addenda
 
     public static Parser<N> WithError<N>(this IParser<N> fn, string message)
         where N : Node =>

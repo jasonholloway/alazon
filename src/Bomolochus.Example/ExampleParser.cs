@@ -57,11 +57,15 @@ public static class ExampleParser
         ParseDisjunction
     );
     
-    // static readonly readonly Parser<Node.Rule> ParseRule = new(() => 
+    // static readonly Parser<Node.Rule> ParseRule = new(() => 
     //     from expr in Optional(ParseExpression)
     //     from block in OneOf(ParseStatementBlock, Expect("Expected statement block"))
     //     select new Node.Rule(expr, block)
     // );
+    
+    /* todo
+     * some kind of Amb operator to make Optional work more as expected
+     */
     
     static readonly Parser<Node.Rule> ParseRule = new(() => 
         OneOf(

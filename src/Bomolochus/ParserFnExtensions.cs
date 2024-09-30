@@ -4,9 +4,6 @@ namespace Bomolochus;
 
 using static ParserOps;
 
-//todo: spacing needs to bubble through select
-
-
 public static class ParserFnExtensions
 {
     public static Parser<B> Select<A, B>(
