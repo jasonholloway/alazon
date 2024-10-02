@@ -65,6 +65,9 @@ public static class ExampleParser
     
     /* todo
      * some kind of Amb operator to make Optional work more as expected
+     * currently we decide too eagerly whether Optional is satisfied or not
+     * partial successes may in some cases be preferable
+     * and we can only decide at last moment, not up front as currently...
      */
     
     static readonly Parser<Node.Rule> ParseRule = new(() => 
@@ -113,10 +116,18 @@ public static class ExampleParser
             )
         select new Node.Call(name, args.ToArray())
     );
+
+    static readonly Parser<Node> ParseIncrement = new(() => 
+        from left in ParseNameNode
+        from op in Match("+=")
+        from right in ParseExpression
+        select new Node.Incr(left, right)
+    );
     
     static readonly Parser<Node> ParseTerminal = new(() => 
         OneOf(
             ParseCall,
+            ParseIncrement,
             ParseExpressionBlock,
             ParseList,
             ParseNameNode, 

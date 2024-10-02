@@ -9,54 +9,59 @@ public class ExtentTests
     {
         var splitter = TextSplitter.Create("kitten mews meekly");
 
-        Assert.That(splitter.TryReadChars(c => c != ' ', out var part0) && part0.ReadAll() == "kitten");
-        Assert.That(splitter.TryReadChars(c => c == ' ', out var part1) && part1.ReadAll() == " ");
-        Assert.That(splitter.TryReadChars(c => c != ' ', out var part2) && part2.ReadAll() == "mews");
-        var split0 = splitter.Split();
-        
-        Assert.That(splitter.TryReadChars(c => c == ' ', out var part3) && part3.ReadAll() == " ");
-        Assert.That(splitter.TryReadChars(c => c != ' ', out var part4) && part4.ReadAll() == "meekly");
-        Assert.That(splitter.TryReadChars(_ => true, out _), Is.False);
-        var split1 = splitter.Split();
-        
-        Assert.That(splitter.TryReadChars(_ => true, out _), Is.False);
+        Assert.That(splitter.ReadCharsWhile(c => c != ' '), Is.EqualTo(6));
+        Assert.That(splitter.ReadCharsWhile(c => c == ' '), Is.EqualTo(1));
+        Assert.That(splitter.ReadCharsWhile(c => c != ' '), Is.EqualTo(4));
+        Assert.That(splitter.Split().Readable.ReadAll(), Is.EqualTo("kitten mews"));
 
-        Assert.That(split0.Readable.ReadAll(), Is.EqualTo("kitten mews"));
-        Assert.That(split1.Readable.ReadAll(), Is.EqualTo(" meekly"));
+        Assert.That(splitter.ReadCharsWhile(c => c == ' '), Is.EqualTo(1));
+        Assert.That(splitter.ReadCharsWhile(c => c != ' '), Is.EqualTo(6));
+        Assert.That(splitter.ReadCharsWhile(_ => true), Is.EqualTo(0));
+        Assert.That(splitter.Split().Readable.ReadAll(), Is.EqualTo(" meekly"));
+        
+        Assert.That(splitter.ReadCharsWhile(_ => true), Is.EqualTo(0));
     }
     
     [Test]
     public void ReadsIntoSplits_WithTransactions()
     {
-        var splitter0 = TextSplitter.Create("kitten mews meekly");
-        Assert.That(splitter0.TryReadChars(c => c != ' ', out var part0) && part0.ReadAll() == "kitten");
-        Assert.That(splitter0.TryReadChars(c => c == ' ', out var part1) && part1.ReadAll() == " ");
+        var s0 = TextSplitter.Create("kitten mews meekly");
+        Assert.That(s0.ReadCharsWhile(c => c != ' '), Is.EqualTo(6));
+        Assert.That(s0.ReadCharsWhile(c => c == ' '), Is.EqualTo(1));
+        Assert.That(s0.Split().Readable.ReadAll(), Is.EqualTo("kitten "));
 
-        var splitter1 = splitter0.StartTransaction();
-        Assert.That(splitter1.TryReadChars(c => c != ' ', out var part2) && part2.ReadAll() == "mews");
-        Assert.That(splitter1.TryReadChars(c => c == ' ', out var part3) && part3.ReadAll() == " ");
+        var s1 = s0.StartTransaction();
+        Assert.That(s1.ReadCharsWhile(c => c != ' '), Is.EqualTo(4));
+        Assert.That(s1.ReadCharsWhile(c => c == ' '), Is.EqualTo(1));
+        Assert.That(s1.Split().Readable.ReadAll(), Is.EqualTo("mews "));
         
-        var splitter2 = splitter1.StartTransaction();
-        Assert.That(splitter2.TryReadChars(c => c != ' ', out var part4) && part4.ReadAll() == "meekly");
-        
-        Assert.That(splitter1.TryReadChars(c => c != ' ', out var part5) && part5.ReadAll() == "meekly");
-        
-        Assert.That(splitter0.TryReadChars(c => c != ' ', out var part6) && part6.ReadAll() == "mews");
+        var s2 = s1.StartTransaction();
+        Assert.That(s2.ReadCharsWhile(c => c != ' '), Is.EqualTo(6));
+        Assert.That(s2.Split().Readable.ReadAll(), Is.EqualTo("meekly"));
+
+        Assert.That(s1.ReadCharsWhile(c => c != ' '), Is.EqualTo(6));
+        Assert.That(s1.Split().Readable.ReadAll(), Is.EqualTo("meekly"));
+
+        Assert.That(s0.ReadCharsWhile(c => c != ' '), Is.EqualTo(4));
+        Assert.That(s0.Split().Readable.ReadAll(), Is.EqualTo("mews"));
     }
     
     [Test]
     public void Reads_WithCheckpoints()
     {
         var reader0 = ReadableReader.Create("kitten mews meekly");
-        Assert.That(reader0.TryReadChars(c => c != ' ', out var part0) && part0.ReadAll() == "kitten");
-        Assert.That(reader0.TryReadChars(c => c == ' ', out var part1) && part1.ReadAll() == " ");
+        Assert.That(reader0.ReadCharsWhile(c => c != ' '), Is.EqualTo(6));
+        Assert.That(reader0.ReadCharsWhile(c => c == ' '), Is.EqualTo(1));
+        Assert.That(reader0.Emit().ReadAll(), Is.EqualTo("kitten "));
 
         var reader1 = reader0.StartTransaction();
-        Assert.That(reader1.TryReadChars(c => c != ' ', out var part2) && part2.ReadAll() == "mews");
-        Assert.That(reader1.TryReadChars(c => c == ' ', out var part3) && part3.ReadAll() == " ");
+        Assert.That(reader1.ReadCharsWhile(c => c != ' '), Is.EqualTo(4));
+        Assert.That(reader1.ReadCharsWhile(c => c == ' '), Is.EqualTo(1));
+        Assert.That(reader1.Emit().ReadAll(), Is.EqualTo("mews "));
 
         var reader2 = reader1.StartTransaction();
-        Assert.That(reader2.TryReadChars(c => c != ' ', out var part4) && part4.ReadAll() == "meekly");
+        Assert.That(reader2.ReadCharsWhile(c => c != ' '), Is.EqualTo(6));
+        Assert.That(reader2.Emit().ReadAll(), Is.EqualTo("meekly"));
     }
     
     //and given some splits, we can convert them into Extents

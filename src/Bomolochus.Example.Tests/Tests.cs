@@ -87,7 +87,7 @@ public class Tests
     [TestCase("{ Emit(123) }", "[Rule(NULL, [Call(Ref(Emit), Number(123))])]")]
     [TestCase("0 { Emit(123) }", "{Rule(Number(0), {Call(Ref(Emit), Number(123))})}")]
     [TestCase("A = 1 { Emit(123) }", "{Rule(Is[Ref(A), Number(1)], {Call(Ref(Emit), Number(123))})}")]
-    [TestCase("{ Count += 1 }", "[Rule(NULL, [Incr(Ref(Count), Number(1))])]")]
+    [TestCase("{ Count += 1 }", "{Rule(NULL, {Incr(Ref(Count), Number(1))})}")]
     [TestCase(
         """
         A { 1 }

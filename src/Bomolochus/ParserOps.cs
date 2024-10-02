@@ -118,14 +118,33 @@ public class ParserOps
             spacing: new Spacing([], [@char])
             );
 
+    public static Parser<Readable> Match(string str)
+        => new(
+            parse: x =>
+            {
+                x = x.StartTransaction();
+                
+                if (x.Text.ReadCharsWhile((c, i) => i < str.Length && c == str[i]) > 0)
+                {
+                    var split = x.Text.Split();
+                    return new Result<Readable>(
+                        x.Commit(), 
+                        Parsing.From(split.Readable, split, Addenda.Empty)
+                    );
+                }
+
+                return null;
+            });
+
     public static Parser<Readable> Match(Predicate<char> predicate) 
         => Parser.Create<Readable>(x =>
         {
-            if (x.Text.TryReadChars(predicate, out var claimed))
+            if (x.Text.ReadCharsWhile(predicate) > 0)
             {
+                var split = x.Text.Split();
                 return new Result<Readable>(
                     x, 
-                    Parsing.From(claimed, x.Text.Split(), Addenda.Empty)
+                    Parsing.From(split.Readable, split, Addenda.Empty)
                 );
             }
 
@@ -208,7 +227,7 @@ public class ParserOps
             };
                 
             if (x.SpaceParsable 
-                && x.Text.TryReadChars(x.SpaceChars.Contains, out _))
+                && x.Text.ReadCharsWhile(x.SpaceChars.Contains) > 0)
             {
                 var space = x.Text.Split();
 

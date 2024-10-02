@@ -19,9 +19,6 @@ public class ReadableReader
     private TransactionalStack<(State State, Readable Readable)> _stack;
     private Readable _staged;
     
-    // private readonly Stack<Checkpointed> _checkpointed = [];
-    // public record Checkpointed(Readable Staged, TransactionalStack<(State, Readable)> Stack);
-
     public static ReadableReader Create(Readable readable)
     {
         var stack = TransactionalStack.Create<(State, Readable)>(16);
@@ -170,19 +167,23 @@ public class ReadableReader
         @char = default;
         return false;
     }
+
+    public int ReadCharsWhile(Predicate<char> predicate)
+        => ReadCharsWhile((c, _) => predicate(c));
     
-    public bool TryReadChars(Predicate<char> predicate, out Readable claimed)
+    public int ReadCharsWhile(Func<char, int, bool> predicate)
     {
-        claimed = Readable.Empty;
+        var claimed = Readable.Empty;
+        var i = 0;
         
         while (TryPop(out var buff))
         {
-            var i = 0;
+            var j = 0;
             var span = buff.Span;
             
-            for (; i < span.Length && predicate(span[i]); i++) {}
+            for (; j < span.Length && predicate(span[j], i); j++, i++) {}
 
-            if (i > 0 && buff.TrySplit(i, out var split))
+            if (j > 0 && buff.TrySplit(j, out var split))
             {
                 claimed += split.Left;
                 Push(split.Right);
@@ -195,28 +196,9 @@ public class ReadableReader
         }
 
         _staged += claimed;
-        return claimed != Readable.Empty;
+        return i;
     }
 
     public string ReadAll()
         => Visit(new StringBuilder(), (sb, span) => sb.Append(span)).ToString();
-
-    // public Checkpointed Checkpoint()
-    // {
-    //     var s = new Checkpointed(_staged, _stack);
-    //     _checkpointed.Push(s);
-    //     _stack = _stack.StartTransaction(16, 32);
-    //     return s;
-    // }
-    //
-    // public void ResetTo(Checkpointed c0)
-    // {
-    //     Start:
-    //     
-    //     var s = _checkpointed.Pop();
-    //     if(s != c0) goto Start;
-    //     
-    //     _stack = s.Stack;
-    //     _staged = s.Staged;
-    // }
 }

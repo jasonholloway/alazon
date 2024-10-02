@@ -31,9 +31,12 @@ public class TextSplitter
 
     public bool TryReadChar(out char @char)
         => _reader.TryReadChar(out @char);
+    
+    public int ReadCharsWhile(Func<char, int, bool> predicate)
+        => _reader.ReadCharsWhile(predicate);
 
-    public bool TryReadChars(Predicate<char> predicate, out Readable claimed)
-        => _reader.TryReadChars(predicate, out claimed);
+    public int ReadCharsWhile(Predicate<char> predicate)
+        => ReadCharsWhile((c, _) => predicate(c));
 
     public string ReadAll()
         => _reader.ReadAll();

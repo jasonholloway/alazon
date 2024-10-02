@@ -26,7 +26,7 @@ public class ReadableTests
             Readable.From("")
             ).GetReader();
 
-        reader.TryReadChars(c => true, out _);
+        reader.ReadCharsWhile((_, _) => true);
         reader.Emit();
 
         Assert.That(reader.TryReadChar(out _), Is.False);
@@ -71,19 +71,40 @@ public class ReadableTests
                     Readable.From("ig")), 
                 Readable.From(" dog")
             ));
-        
-        Assert.That(reader.TryReadChars(c => c is 'b' or 'i', out var s0), Is.True);
-        Assert.That(s0.GetReader().ReadAll(), Is.EqualTo("bi"));
-        
-        Assert.That(reader.TryReadChars(c => c is 'g', out var s1), Is.True);
-        Assert.That(s1.GetReader().ReadAll(), Is.EqualTo("g"));
-        
+
+        Assert.That(reader.ReadCharsWhile(c => c is 'b' or 'i'), Is.EqualTo(2));
+        Assert.That(reader.ReadCharsWhile(c => c is 'g'), Is.EqualTo(1));
         Assert.That(reader.Split().Readable.ReadAll(), Is.EqualTo("big"));
+
+        Assert.That(reader.ReadCharsWhile(c => true), Is.EqualTo(4));
+        Assert.That(reader.Split().Readable.ReadAll(), Is.EqualTo(" dog"));
+
+        Assert.That(reader.ReadCharsWhile(c => true), Is.EqualTo(0));
+        Assert.That(reader.Split().Readable.ReadAll(), Is.EqualTo(""));
+    }
+    
+    [Test]
+    public void ReadPositionalChars()
+    {
+        var reader = TextSplitter.Create(
+            new ReadableNode(
+                new ReadableNode(
+                    Readable.From("b"), 
+                    Readable.From("ig")), 
+                Readable.From(" dog")
+            ));
+
+        var chars = reader.ReadCharsWhile((c, i) =>
+            (i, c) switch
+            {
+                (0, 'b') => true,
+                (1, 'i') => true,
+                (2, 'g') => true,
+                _ => false
+            });
         
-        Assert.That(reader.TryReadChars(c => true, out var rest), Is.True);
-        Assert.That(rest.GetReader().ReadAll(), Is.EqualTo(" dog"));
-        
-        Assert.That(reader.TryReadChars(c => true, out _), Is.False);
+        Assert.That(chars, Is.EqualTo(3));
+        Assert.That(reader.Split().Readable.ReadAll(), Is.EqualTo("big"));
     }
     
     [Test]
@@ -96,25 +117,23 @@ public class ReadableTests
                     Readable.From("ig")),
                 Readable.From(" dog")
             ));
-        
-        Assert.That(reader.TryReadChars(c => c is 'b' or 'i' or 'g' or ' ', out var s0), Is.True);
-        Assert.That(s0.GetReader().ReadAll(), Is.EqualTo("big "));
+
+        Assert.That(reader.ReadCharsWhile(c => c is 'b' or 'i' or 'g' or ' '), Is.EqualTo(4));
         Assert.That(reader.Split().Readable.ReadAll(), Is.EqualTo("big "));
 
-        Assert.That(reader.TryReadChars(c => c is 'd' or 'o' or 'g', out var s1), Is.True);
-        Assert.That(s1.GetReader().ReadAll(), Is.EqualTo("dog"));
+        Assert.That(reader.ReadCharsWhile(c => c is 'd' or 'o' or 'g'), Is.EqualTo(3));
         
-        Assert.That(reader.TryReadChars(c => true, out _), Is.False);
+        Assert.That(reader.ReadCharsWhile(c => true), Is.EqualTo(0));
         
         reader.Reset();
+
+        Assert.That(reader.ReadCharsWhile(c => c is 'd' or 'o'), Is.EqualTo(2));
+        Assert.That(reader.Split().Readable.ReadAll(), Is.EqualTo("do"));
+
+        Assert.That(reader.ReadCharsWhile(c => true), Is.EqualTo(1));
+        Assert.That(reader.Split().Readable.ReadAll(), Is.EqualTo("g"));
         
-        Assert.That(reader.TryReadChars(c => c is 'd' or 'o', out var s2), Is.True);
-        Assert.That(s2.GetReader().ReadAll(), Is.EqualTo("do"));
-        
-        Assert.That(reader.TryReadChars(c => true, out var s3), Is.True);
-        Assert.That(s3.GetReader().ReadAll(), Is.EqualTo("g"));
-        
-        Assert.That(reader.TryReadChars(c => true, out _), Is.False);
+        Assert.That(reader.ReadCharsWhile(c => true), Is.EqualTo(0));
     }
     
     [Test]
@@ -123,34 +142,34 @@ public class ReadableTests
         var readable = R("wo") + (R("of ") + (R("say") + R("s ") + R("the")) + (R(" ") + R("d"))) + R("og sometimes");
         var reader0 = ReadableReader.Create(readable);
         
-        Assert.That(reader0.TryReadChars(c => c != ' ', out var r0), Is.True);
-        Assert.That(r0.ReadAll(), Is.EqualTo("woof"));
+        reader0.ReadCharsWhile(c => c != ' ');
+        Assert.That(reader0.Emit().ReadAll(), Is.EqualTo("woof"));
         
-        Assert.That(reader0.TryReadChars(c => c == ' ', out var r1), Is.True);
-        Assert.That(r1.ReadAll(), Is.EqualTo(" "));
+        reader0.ReadCharsWhile(c => c == ' ');
+        Assert.That(reader0.Emit().ReadAll(), Is.EqualTo(" "));
         
-        Assert.That(reader0.TryReadChars(c => c != ' ', out var r2), Is.True);
-        Assert.That(r2.ReadAll(), Is.EqualTo("says"));
+        reader0.ReadCharsWhile(c => c != ' ');
+        Assert.That(reader0.Emit().ReadAll(), Is.EqualTo("says"));
         
-        Assert.That(reader0.TryReadChars(c => c == ' ', out var r3), Is.True);
-        Assert.That(r3.ReadAll(), Is.EqualTo(" "));
+        reader0.ReadCharsWhile(c => c == ' ');
+        Assert.That(reader0.Emit().ReadAll(), Is.EqualTo(" "));
 
         var reader1 = reader0.StartTransaction();
         
-        Assert.That(reader1.TryReadChars(c => c != ' ', out var r4), Is.True);
-        Assert.That(r4.ReadAll(), Is.EqualTo("the"));
+        reader1.ReadCharsWhile(c => c != ' ');
+        Assert.That(reader1.Emit().ReadAll(), Is.EqualTo("the"));
         
-        Assert.That(reader1.TryReadChars(c => c == ' ', out var r5), Is.True);
-        Assert.That(r5.ReadAll(), Is.EqualTo(" "));
+        reader1.ReadCharsWhile(c => c == ' ');
+        Assert.That(reader1.Emit().ReadAll(), Is.EqualTo(" "));
 
         var reader2 = reader1.StartTransaction();
         
-        Assert.That(reader2.TryReadChars(c => c != ' ', out var r6), Is.True);
-        Assert.That(r6.ReadAll(), Is.EqualTo("dog"));
+        reader2.ReadCharsWhile(c => c != ' ');
+        Assert.That(reader2.Emit().ReadAll(), Is.EqualTo("dog"));
         
         //and now continue on upstream...
-        Assert.That(reader0.TryReadChars(c => c != ' ', out var r8), Is.True);
-        Assert.That(r8.ReadAll(), Is.EqualTo("the"));
+        reader0.ReadCharsWhile(c => c != ' ');
+        Assert.That(reader0.Emit().ReadAll(), Is.EqualTo("the"));
     }
     
     [Test]
@@ -158,15 +177,15 @@ public class ReadableTests
     {
         var splitter0 = TextSplitter.Create("Bow wow wow woof woof woof");
         
-        Assert.That(splitter0.TryReadChars(c => c is not ' ', out _), Is.True);
+        Assert.That(splitter0.ReadCharsWhile(c => c is not ' '), Is.GreaterThan(0));
         Assert.That(splitter0.Split().Readable.ReadAll(), Is.EqualTo("Bow"));
 
         var splitter1 = splitter0.StartTransaction();
-        Assert.That(splitter1.TryReadChars(c => c is ' ', out _), Is.True);
+        Assert.That(splitter1.ReadCharsWhile(c => c is ' '), Is.GreaterThan(0));
         Assert.That(splitter1.Split().Readable.ReadAll(), Is.EqualTo(" "));
         
         var splitter2 = splitter1.Commit();
-        Assert.That(splitter2.TryReadChars(c => c is not ' ', out _), Is.True);
+        Assert.That(splitter2.ReadCharsWhile(c => c is not ' '), Is.GreaterThan(0));
         Assert.That(splitter2.Split().Readable.ReadAll(), Is.EqualTo("wow"));
     }
     
